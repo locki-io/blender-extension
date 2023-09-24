@@ -10,15 +10,14 @@ bl_info = {
     'name': 'Locki-ID-Addon',
     'author': 'Jean-Noël Schilling',
     'version': (0, 1, 0),
-    'blender': (3, 60, 0),
+    'blender': (2, 80, 0),
     'location': 'Add-on preferences',
     'description':
         'Stores your Locki ID credentials(API key-secret) for usage of your stored NFT',
     "doc_url": "",
-    'category': 'System',
+    'category': 'Development',
     'support': '',
 }
-
 
 if 'communication' in locals():
     import importlib
