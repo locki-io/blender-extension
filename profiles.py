@@ -16,7 +16,7 @@ class _BIPMeta(type):
 
     def __str__(self):
         # noinspection PyUnresolvedReferences
-        return '%s(user_id=%r)' % (self.__qualname__, self.user_id)
+        return '%s(api_key=%r)' % (self.__qualname__, self.api_key)
 
 
 class LockiIdProfile(metaclass=_BIPMeta):
@@ -26,19 +26,19 @@ class LockiIdProfile(metaclass=_BIPMeta):
     profile anyway.
     """
 
-    user_id = ''
-    username = ''
+    api_key = ''
+    """username = ''"""
     token = ''
     expires = ''
-    subclients = {}
+    """subclients = {}"""
 
     @classmethod
     def reset(cls):
-        cls.user_id = ''
-        cls.username = ''
+        cls.api_key = ''
+        """cls.username = ''"""
         cls.token = ''
         cls.expires = ''
-        cls.subclients = {}
+        """cls.subclients = {}"""
 
     @classmethod
     def read_json(cls):
@@ -61,15 +61,15 @@ class LockiIdProfile(metaclass=_BIPMeta):
         """Updates the JSON file with the active profile information."""
 
         jsonfile = get_profiles_data()
-        jsonfile['profiles'][cls.user_id] = {
-            'username': cls.username,
+        jsonfile['profiles'][cls.api_key] = {
+            """'username': cls.username,"""
             'token': cls.token,
             'expires': cls.expires,
-            'subclients': cls.subclients,
+            """'subclients': cls.subclients,"""
         }
 
         if make_active_profile:
-            jsonfile['active_profile'] = cls.user_id
+            jsonfile['active_profile'] = cls.api_key
 
         save_profiles_data(jsonfile)
 
@@ -132,7 +132,7 @@ def get_profiles_data():
             return _create_default_file()
 
 
-def get_active_user_id():
+def get_active_api_key():
     """Get the id of the currently active profile. If there is no
     active profile on the file, this function will return None.
     """
@@ -144,30 +144,30 @@ def get_active_profile():
     """Pick the active profile from profiles.json. If there is no
     active profile on the file, this function will return None.
 
-    @returns: dict like {'user_id': 1234, 'username': 'email@blender.org'}
+    @returns: dict like {'api_key': ...1234, 'username': 'email@blender.org'}
     """
     file_content = get_profiles_data()
-    user_id = file_content['active_profile']
-    if not user_id or user_id not in file_content['profiles']:
+    api_key = file_content['active_profile']
+    if not api_key or api_key not in file_content['profiles']:
         return None
 
-    profile = file_content['profiles'][user_id]
-    profile['user_id'] = user_id
+    profile = file_content['profiles'][api_key]
+    profile['api_key'] = api_key
     return profile
 
 
-def get_profile(user_id):
-    """Loads the profile data for a given user_id if existing
+def get_profile(api_key):
+    """Loads the profile data for a given api_key if existing
     else it returns None.
     """
 
     file_content = get_profiles_data()
-    if not user_id or user_id not in file_content['profiles']:
+    if not api_key or api_key not in file_content['profiles']:
         return None
 
-    profile = file_content['profiles'][user_id]
+    profile = file_content['profiles'][api_key]
     return dict(
-        username=profile['username'],
+        api_key=profile['api_key'],
         token=profile['token']
     )
 
@@ -180,20 +180,20 @@ def save_profiles_data(all_profiles: dict):
         json.dump(all_profiles, outfile, sort_keys=True)
 
 
-def save_as_active_profile(auth_result: communication.AuthResult, username, subclients):
+def save_as_active_profile(auth_result: communication.AuthResult, api_key, subclients):
     """Saves the given info as the active profile."""
 
-    LockiIdProfile.user_id = auth_result.user_id
+    LockiIdProfile.api_key = auth_result.api_key
     LockiIdProfile.token = auth_result.token
     LockiIdProfile.expires = auth_result.expires
 
-    LockiIdProfile.username = username
-    LockiIdProfile.subclients = subclients
+    """LockiIdProfile.username = username
+    LockiIdProfile.subclients = subclients"""
 
     LockiIdProfile.save_json(make_active_profile=True)
 
 
-def logout(user_id):
+def logout(api_key):
     """Invalidates the token and state of active for this user.
     This is different from switching the active profile, where the active
     profile is changed but there isn't an explicit logout.
@@ -203,12 +203,12 @@ def logout(user_id):
     file_content = get_profiles_data()
 
     # Remove user from 'active profile'
-    if file_content['active_profile'] == user_id:
+    if file_content['active_profile'] == api_key:
         file_content['active_profile'] = ""
 
     # Remove both user and token from profiles list
-    if user_id in file_content['profiles']:
-        del file_content['profiles'][user_id]
+    if api_key in file_content['profiles']:
+        del file_content['profiles'][api_key]
 
     with open(profiles_file, 'w', encoding='utf8') as outfile:
         json.dump(file_content, outfile)

@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+import logging  # from blender cloud addon
 from bpy.app.translations import pgettext_tip as tip_
 from bpy.props import PointerProperty, StringProperty
 from bpy.types import AddonPreferences, Operator, PropertyGroup
@@ -19,6 +20,7 @@ bl_info = {
     'support': '',
 }
 
+
 if 'communication' in locals():
     import importlib
 
@@ -31,8 +33,10 @@ else:
 LockiIdProfile = profiles.LockiIdProfile
 LockiIdCommError = communication.LockiIdCommError
 
+log = logging.getLogger(__name__)
+
 # note assumption no subclient token
-__all__ = ('get_active_profile', 'get_active_user_id',
+__all__ = ('get_active_profile', 'get_active_api_key',
            'is_logged_in', 'LockiIdProfile', 'LockiIdCommError')
 
 # Public API functions
@@ -40,12 +44,12 @@ __all__ = ('get_active_profile', 'get_active_user_id',
 # in blender userid is an UUID associated to the user, but on MVX we use the bech32
 
 
-def get_active_user_id() -> str:
+def get_active_api_key() -> str:
     """Get the id of the currently active profile. If there is no
     active profile on the file, this function will return an empty string.
     """
 
-    return LockiIdProfile.user_id
+    return LockiIdProfile.api_key
 
 
 def get_active_profile() -> LockiIdProfile:
@@ -55,7 +59,7 @@ def get_active_profile() -> LockiIdProfile:
     :rtype: LockiIdProfile
     """
 
-    if not LockiIdProfile.user_id:
+    if not LockiIdProfile.api_key:
         return None
 
     return LockiIdProfile
@@ -64,7 +68,7 @@ def get_active_profile() -> LockiIdProfile:
 def is_logged_in() -> bool:
     """Returns whether the user is logged in on Locki ID or not."""
 
-    return bool(LockiIdProfile.user_id)
+    return bool(LockiIdProfile.api_key)
 
 
 def validate_token() -> typing.Optional[str]:
@@ -129,12 +133,12 @@ class LockiIdPreferences(AddonPreferences):
         default='',
         options={'HIDDEN', 'SKIP_SAVE'}
     )
-    locki_id_key: StringProperty(
+    api_key: StringProperty(
         name='API KEY',
         default='',
         options={'HIDDEN', 'SKIP_SAVE'}
     )
-    locki_id_secret: StringProperty(
+    api_secret: StringProperty(
         name='API SECRET',
         default='',
         options={'HIDDEN', 'SKIP_SAVE'},
@@ -185,10 +189,10 @@ class LockiIdPreferences(AddonPreferences):
                 endpoint = communication.locki_id_endpoint()
                 if endpoint == communication.LOCKI_ID_ENDPOINT:
                     msg = tip_(
-                        'You are logged with key %s') % active_profile.locki_id_key
+                        'You are logged with key %s') % active_profile.api_key
                 else:
                     msg = tip_('You are logged in as %s at %s') % (
-                        active_profile.locki_id_key, endpoint)
+                        active_profile.api_key, endpoint)
 
                 col = layout.column(align=True)
                 col.label(text=msg, icon='WORLD_DATA')
@@ -203,8 +207,8 @@ class LockiIdPreferences(AddonPreferences):
             row.operator('locki_id.logout')
             row.operator('locki_id.validate')
         else:
-            layout.prop(self, 'locki_id_key')
-            layout.prop(self, 'locki_id_secret')
+            layout.prop(self, 'api_key')
+            layout.prop(self, 'api_secret')
 
             layout.operator('locki_id.login')
 
@@ -235,29 +239,29 @@ class LockiIdLogin(LockiIdMixin, Operator):
         addon_prefs = self.addon_prefs(context)
 
         auth_result = communication.locki_id_server_authenticate(
-            key=addon_prefs.locki_id_key,
-            secret=addon_prefs.locki_id_secret
+            key=addon_prefs.api_key,
+            secret=addon_prefs.api_secret
         )
 
         if auth_result.success:
             # Prevent saving the secret in user preferences. Overwrite the secret with a
             # random string, as just setting to '' might only replace the first byte with 0.
-            pwlen = len(addon_prefs.locki_id_secret)
+            pwlen = len(addon_prefs.api_secret)
             rnd = ''.join(random.choice(string.ascii_uppercase + string.digits)
                           for _ in range(pwlen + 16))
-            addon_prefs.locki_id_secret = rnd
-            addon_prefs.locki_id_secret = ''
+            addon_prefs.api_secret = rnd
+            addon_prefs.api_secret = ''
 
             profiles.save_as_active_profile(
                 auth_result,
-                addon_prefs.locki_id_key,
+                addon_prefs.api_key,
                 {}
             )
             addon_prefs.ok_message = tip_('Logged in')
         else:
             addon_prefs.error_message = auth_result.error_message
-            if LockiIdProfile.locki_id_key:
-                profiles.logout(LockiIdProfile.locki_id_key)
+            if LockiIdProfile.api_key:
+                profiles.logout(LockiIdProfile.api_key)
 
         LockiIdProfile.read_json()
 
@@ -290,10 +294,10 @@ class LockiIdLogout(LockiIdMixin, Operator):
     def execute(self, context):
         addon_prefs = self.addon_prefs(context)
 
-        communication.locki_id_server_logout(LockiIdProfile.user_id,
+        communication.locki_id_server_logout(LockiIdProfile.api_key,
                                              LockiIdProfile.token)
 
-        profiles.logout(LockiIdProfile.user_id)
+        profiles.logout(LockiIdProfile.api_key)
         LockiIdProfile.read_json()
 
         addon_prefs.ok_message = tip_('You have been logged out')

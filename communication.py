@@ -7,7 +7,8 @@ import typing
 log = logging.getLogger(__name__)
 
 # Can be overridden by setting the environment variable LOCKI_ID_ENDPOINT. Overrid with localhost:8000 for development
-LOCKI_ID_ENDPOINT = 'https://api.locki.io/'
+LOCKI_ID_ENDPOINT = 'http://localhost:'  # JNS add port here
+# production LOCKI_ID_ENDPOINT = 'https://api.locki.io/'
 
 # Will become a requests.Session at the first request to Locki ID.
 requests_session = None
@@ -22,10 +23,10 @@ class LockiIdCommError(RuntimeError):
 
 class AuthResult:
     def __init__(self, *, success: bool,
-                 user_id: str = None, token: str = None, expires: str = None,
+                 api_key: str = None, token: str = None, expires: str = None,
                  error_message: typing.Any = None):  # when success=False
         self.success = success
-        self.user_id = user_id
+        self.api_key = api_key
         self.token = token
         self.error_message = str(error_message)
         self.expires = expires
@@ -68,10 +69,10 @@ def locki_id_session():
         blender_version = '.'.join(str(component)
                                    for component in bpy.app.version)
 
-    from blender_id import bl_info
-    addon_version = '.'.join(str(component)
-                             for component in bl_info['version'])
-    requests_session.headers['User-Agent'] = f'Blender/{blender_version} Locki-ID-Addon/{addon_version}'
+    # from blender_id import bl_info
+    # addon_version = '.'.join(str(component)
+    #                          for component in bl_info['version'])
+    requests_session.headers['User-Agent'] = f'Blender/3.6.2 Locki-ID-Addon/0.1.0'
 
     return requests_session
 
@@ -134,7 +135,7 @@ def locki_id_server_authenticate(key, secret) -> AuthResult:
         if status == 'success':
             # defines the structure of the payload server side response
             return AuthResult(success=True,
-                              user_id=str(resp['data']['user_id']),
+                              api_key=str(resp['data']['api_key']),
                               # JNS to update as bearer token nativeAuth
                               token=resp['data']['oauth_token']['access_token'],
                               expires=resp['data']['oauth_token']['expires'],
@@ -178,11 +179,11 @@ def locki_id_server_validate(token) -> typing.Tuple[typing.Optional[str], typing
     return response['token_expires'], None
 
 
-def locki_id_server_logout(user_id, token):
+def locki_id_server_logout(api_key, token):
     """Logs out of the Locki ID service by removing the token server-side.
 
-    @param user_id: the email address of the user.
-    @type user_id: str
+    @param api_key: the apikey of the user.
+    @type api_key: str
     @param token: the token to remove
     @type token: str
     @return: {'status': 'fail' or 'success', 'error_message': str}
@@ -192,7 +193,7 @@ def locki_id_server_logout(user_id, token):
     import requests.exceptions
 
     payload = dict(
-        user_id=user_id,
+        api_key=api_key,
         token=token
     )
     session = locki_id_session()
