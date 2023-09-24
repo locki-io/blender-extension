@@ -62,12 +62,11 @@ class LockiIdProfile(metaclass=_BIPMeta):
 
         jsonfile = get_profiles_data()
         jsonfile['profiles'][cls.api_key] = {
-            """'username': cls.username,"""
             'token': cls.token,
             'expires': cls.expires,
-            """'subclients': cls.subclients,"""
         }
-
+# 'username': cls.username,
+# 'subclients': cls.subclients,
         if make_active_profile:
             jsonfile['active_profile'] = cls.api_key
 
