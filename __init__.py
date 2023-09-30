@@ -7,12 +7,12 @@ from bpy.types import AddonPreferences, Operator, PropertyGroup
 import bpy
 import typing
 import datetime
-import get_scripts
+
 
 bl_info = {
     'name': 'Locki-ID-Addon',
     'author': 'Jean-Noël Schilling',
-    'version': (0, 1, 0),
+    'version': (0, 1, 1),
     'blender': (2, 80, 0),
     'location': 'Add-on preferences',
     'description':
@@ -28,8 +28,9 @@ if 'communication' in locals():
     communication = importlib.reload(communication)
     # noinspection PyUnboundLocalVariable
     profiles = importlib.reload(profiles)
+    get_scripts = importlib.reload(get_scripts)
 else:
-    from . import communication, profiles
+    from . import communication, profiles, get_scripts
 LockiIdProfile = profiles.LockiIdProfile
 LockiIdCommError = communication.LockiIdCommError
 
@@ -72,7 +73,7 @@ def is_logged_in() -> bool:
 
 
 def validate_token() -> typing.Optional[str]:
-    """Validates the current user's token with Blender ID.
+    """Validates the current user's token with Locki ID.
 
     Also refreshes the stored token expiry time.
 
@@ -251,7 +252,7 @@ class LockiIdLogin(LockiIdMixin, Operator):
                           for _ in range(pwlen + 16))
             addon_prefs.api_secret = rnd
             addon_prefs.api_secret = ''
-
+            # JNS add the bearer token, signature, ...
             profiles.save_as_active_profile(
                 auth_result,
                 addon_prefs.api_key,
@@ -315,11 +316,12 @@ class VIEW3D_PT_locki_panel(bpy.types.Panel):
 
     # add labels
     bl_category = "Locki category"  # found in the Sidebar
-    bl_label = "Locki Panel label"  # found at the top of the Panel
+    bl_label = "Locki Panel"  # found at the top of the Panel
 
     def draw(self, context):
         """define the layout of the panel"""
-
+        row = self.layout.row()
+        row.operator("object.delete", text="Clear object")
         self.layout.separator()
         row = self.layout.row()
         row.operator("mesh.primitive_cube_add", text="Add Cube")

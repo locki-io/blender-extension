@@ -6,8 +6,9 @@ import typing
 
 log = logging.getLogger(__name__)
 
-# Can be overridden by setting the environment variable LOCKI_ID_ENDPOINT. Overrid with localhost:8000 for development
-LOCKI_ID_ENDPOINT = 'http://localhost:'  # JNS add port here
+# Can be overridden by setting the environment variable LOCKI_ID_ENDPOINT. Overrid with localhost:3000 for development
+LOCKI_ID_ENDPOINT = 'http://localhost:3000'  # JNS add port here
+MVX_ENDPOINT = 'https://devnet-gateway.multiversx.com/'
 # production LOCKI_ID_ENDPOINT = 'https://api.locki.io/'
 
 # Will become a requests.Session at the first request to Locki ID.
@@ -69,10 +70,10 @@ def locki_id_session():
         blender_version = '.'.join(str(component)
                                    for component in bpy.app.version)
 
-    # from blender_id import bl_info
-    # addon_version = '.'.join(str(component)
-    #                          for component in bl_info['version'])
-    requests_session.headers['User-Agent'] = f'Blender/3.6.2 Locki-ID-Addon/0.1.0'
+    from locki_id_addon import bl_info
+    addon_version = '.'.join(str(component)
+                              for component in bl_info['version'])
+    requests_session.headers['User-Agent'] = f'Blender/{blender_version} Locki-ID-Addon/{ addon_version }'
 
     return requests_session
 
@@ -137,11 +138,13 @@ def locki_id_server_authenticate(key, secret) -> AuthResult:
             return AuthResult(success=True,
                               api_key=str(resp['data']['api_key']),
                               # JNS to update as bearer token nativeAuth
-                              token=resp['data']['oauth_token']['access_token'],
-                              expires=resp['data']['oauth_token']['expires'],
+                              token=resp['data']['token_login']['loginToken'], # was ['oauth_token']['access_token'] 
+                              signature=resp['data']['token_login']['signature'], 
+                              nativeAuthToken=resp['data']['token_login']['nativeAuthToken'],
+                              expires=resp['data']['token_login']['expires'], # was ['oauth_token']['expires'] 
                               )
         if status == 'fail':
-            return AuthResult(success=False, error_message='Username and/or password is incorrect')
+            return AuthResult(success=False, error_message='api-key and/or key-secret is incorrect')
 
     return AuthResult(success=False,
                       error_message='There was a problem communicating with'
@@ -149,7 +152,8 @@ def locki_id_server_authenticate(key, secret) -> AuthResult:
 
 
 def locki_id_server_validate(token) -> typing.Tuple[typing.Optional[str], typing.Optional[str]]:
-    """Validate the auth token with the server.
+    """Validate the nativeAuth token with the server.
+        JNS question is whether we validate with the chain ? or with the locki server
 
     @param token: the authentication token
     @type token: str
@@ -224,7 +228,7 @@ def locki_id_server_logout(api_key, token):
 
 
 def make_authenticated_call(method, url, auth_token, data):
-    """Makes a HTTP call authenticated with the OAuth token."""
+    """Makes a HTTP call authenticated with the nativeAuth token."""
 
     import requests.exceptions
 
@@ -236,6 +240,26 @@ def make_authenticated_call(method, url, auth_token, data):
                             headers={
                                 'Authorization': 'Bearer %s' % auth_token},
                             verify=True,
+                            timeout=REQUESTS_TIMEOUT)
+    except (requests.exceptions.HTTPError,
+            requests.exceptions.ConnectionError) as e:
+        raise LockiIdCommError(str(e))
+
+    return r
+
+def check_address_nonce(address):
+    import requests.exceptions
+    import os
+    import urllib
+    address = 'erd19flra2au9gfhweggsax9qkg63r8vqq58drfdq2zcr28fk7nywduq4fcj7h'
+    base_url = os.environ.get('MVX_ENDPOINT')
+    endpoint_path = '/address/' + address + '/nonce'
+    url = urllib.parse.urljoin(base_url, endpoint_path)
+
+    session = None
+    try:
+        r = session.request('get',
+                            url,
                             timeout=REQUESTS_TIMEOUT)
     except (requests.exceptions.HTTPError,
             requests.exceptions.ConnectionError) as e:
