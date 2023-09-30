@@ -17,7 +17,7 @@ bl_info = {
     'location': 'Add-on preferences',
     'description':
         'Stores your Locki ID credentials(API key-secret) for usage of your stored NFT',
-    'category': 'Development'
+    'category': 'System'
 }
 
 
@@ -320,6 +320,9 @@ class VIEW3D_PT_locki_panel(bpy.types.Panel):
 
     def draw(self, context):
         """define the layout of the panel"""
+
+        row = self.layout.row()
+        row.operator("utils.get_nonce", text="Check MvX nonce")
         row = self.layout.row()
         row.operator("object.delete", text="Clear object")
         self.layout.separator()
@@ -348,6 +351,8 @@ def register():
     # register panel 
     bpy.utils.register_class(VIEW3D_PT_locki_panel)
     bpy.utils.register_class(get_scripts.MESH_OT_add_subdiv_monkey)
+    # register mvx test
+    bpy.utils.register_class(communication.UTILS_OT_get_nonce)
 
     preferences = LockiIdMixin.addon_prefs(bpy.context)
     preferences.reset_messages()
@@ -362,6 +367,9 @@ def unregister():
     #unregister panel 
     bpy.utils.unregister_class(get_scripts.MESH_OT_add_subdiv_monkey)
     bpy.utils.unregister_class(VIEW3D_PT_locki_panel)
+
+    # register mvx test
+    bpy.utils.unregister_class(communication.UTILS_OT_get_nonce)
 
 if __name__ == '__main__':
     register()

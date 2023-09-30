@@ -3,11 +3,12 @@
 import functools
 import logging
 import typing
+import bpy
 
 log = logging.getLogger(__name__)
 
 # Can be overridden by setting the environment variable LOCKI_ID_ENDPOINT. Overrid with localhost:3000 for development
-LOCKI_ID_ENDPOINT = 'http://localhost:3000'  # JNS add port here
+LOCKI_ID_ENDPOINT = 'http://localhost:3000/'  # JNS add port here
 MVX_ENDPOINT = 'https://devnet-gateway.multiversx.com/'
 # production LOCKI_ID_ENDPOINT = 'https://api.locki.io/'
 
@@ -70,7 +71,7 @@ def locki_id_session():
         blender_version = '.'.join(str(component)
                                    for component in bpy.app.version)
 
-    from locki_id_addon import bl_info
+    from blender_id import bl_info
     addon_version = '.'.join(str(component)
                               for component in bl_info['version'])
     requests_session.headers['User-Agent'] = f'Blender/{blender_version} Locki-ID-Addon/{ addon_version }'
@@ -96,6 +97,23 @@ def locki_id_endpoint(endpoint_path=None):
     # urljoin() is None-safe for the 2nd parameter.
     return urllib.parse.urljoin(base_url, endpoint_path)
 
+@functools.lru_cache(maxsize=None)
+def mvx_endpoint(endpoint_path=None):
+    """Gets the endpoint for the authentication API. If the MVX_ENDPOINT env variable
+    is defined, it's possible to override the (default) production address.
+    """
+    import os
+    import urllib.parse
+
+    base_url = os.environ.get('MVX_ENDPOINT')
+    if base_url:
+        log.warning('Using overridden mvx url %s', base_url)
+    else:
+        base_url = MVX_ENDPOINT
+        log.info('Using standard mvx url %s', base_url)
+
+    # urljoin() is None-safe for the 2nd parameter.
+    return urllib.parse.urljoin(base_url, endpoint_path)
 
 def locki_id_server_authenticate(key, secret) -> AuthResult:
     """Authenticate the user with the server with a single transaction
@@ -247,16 +265,23 @@ def make_authenticated_call(method, url, auth_token, data):
 
     return r
 
+def show_message(message):
+    def draw(self, context):
+        self.layout.label(text=message)
+
+    bpy.context.window_manager.popup_menu(draw, title="Result", icon='INFO')
+
+
 def check_address_nonce(address):
     import requests.exceptions
     import os
     import urllib
-    address = 'erd19flra2au9gfhweggsax9qkg63r8vqq58drfdq2zcr28fk7nywduq4fcj7h'
-    base_url = os.environ.get('MVX_ENDPOINT')
-    endpoint_path = '/address/' + address + '/nonce'
+    # address = 'erd19flra2au9gfhweggsax9qkg63r8vqq58drfdq2zcr28fk7nywduq4fcj7h'
+    base_url = mvx_endpoint()
+    endpoint_path = 'address/' + address + '/nonce'
     url = urllib.parse.urljoin(base_url, endpoint_path)
 
-    session = None
+    session = locki_id_session()
     try:
         r = session.request('get',
                             url,
@@ -265,4 +290,36 @@ def check_address_nonce(address):
             requests.exceptions.ConnectionError) as e:
         raise LockiIdCommError(str(e))
 
-    return r
+    try:
+        resp = r.json()
+        print(resp)
+    except ValueError as e:
+        raise LockiIdCommError(f'Failed to decode JSON: {e}')
+
+    # Assume the desired value is in a key called 'desired_key' in the JSON structure
+    nonce = resp.get('data', {}).get('nonce', None)
+
+    if nonce is None:
+        raise LockiIdCommError('Nonce not found in response')
+
+    return nonce
+    # return r
+
+class UTILS_OT_get_nonce(bpy.types.Operator):
+    """Get nonce from MvX address """
+
+    bl_idname = "utils.get_nonce"
+    bl_label = "get address nonce"
+    bl_options = {"REGISTER", "UNDO"}
+
+    address: bpy.props.StringProperty(
+        name="address",
+        default= 'erd19flra2au9gfhweggsax9qkg63r8vqq58drfdq2zcr28fk7nywduq4fcj7h',
+        description="Wallet address",
+    )
+
+    def execute(self, context):
+        # print(self.address)
+        nonce = check_address_nonce(self.address)
+        show_message(f"Nonce: {nonce}")
+        return {"FINISHED"}
