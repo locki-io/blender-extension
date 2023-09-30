@@ -7,6 +7,8 @@ from bpy.types import AddonPreferences, Operator, PropertyGroup
 import bpy
 import typing
 import datetime
+import get_scripts
+
 bl_info = {
     'name': 'Locki-ID-Addon',
     'author': 'Jean-Noël Schilling',
@@ -15,9 +17,7 @@ bl_info = {
     'location': 'Add-on preferences',
     'description':
         'Stores your Locki ID credentials(API key-secret) for usage of your stored NFT',
-    "doc_url": "",
-    'category': 'Development',
-    'support': '',
+    'category': 'Development'
 }
 
 
@@ -304,6 +304,36 @@ class LockiIdLogout(LockiIdMixin, Operator):
         return {'FINISHED'}
 
 
+# class naming convention ‘CATEGORY_PT_name’
+class VIEW3D_PT_locki_panel(bpy.types.Panel):
+
+    # where to add the panel in the UI
+    # 3D Viewport area (find list of values here https://docs.blender.org/api/current/bpy_types_enum_items/space_type_items.html#rna-enum-space-type-items)
+    bl_space_type = "VIEW_3D"
+    # Sidebar region (find list of values here https://docs.blender.org/api/current/bpy_types_enum_items/region_type_items.html#rna-enum-region-type-items)
+    bl_region_type = "UI"
+
+    # add labels
+    bl_category = "Locki category"  # found in the Sidebar
+    bl_label = "Locki Panel label"  # found at the top of the Panel
+
+    def draw(self, context):
+        """define the layout of the panel"""
+
+        self.layout.separator()
+        row = self.layout.row()
+        row.operator("mesh.primitive_cube_add", text="Add Cube")
+        row = self.layout.row()
+        row.operator("mesh.primitive_ico_sphere_add", text="Add Ico Sphere")
+        row = self.layout.row()
+        row.operator("object.shade_smooth", text="Shade Smooth")
+
+        self.layout.separator()
+
+        row = self.layout.row()
+        row.operator("mesh.add_subdiv_monkey", text="Add Subdivided Monkey")
+
+
 def register():
     profiles.register()
     LockiIdProfile.read_json()
@@ -312,6 +342,10 @@ def register():
     bpy.utils.register_class(LockiIdLogout)
     bpy.utils.register_class(LockiIdPreferences)
     bpy.utils.register_class(LockiIdValidate)
+
+    # register panel 
+    bpy.utils.register_class(VIEW3D_PT_locki_panel)
+    bpy.utils.register_class(get_scripts.MESH_OT_add_subdiv_monkey)
 
     preferences = LockiIdMixin.addon_prefs(bpy.context)
     preferences.reset_messages()
@@ -323,6 +357,9 @@ def unregister():
     bpy.utils.unregister_class(LockiIdPreferences)
     bpy.utils.unregister_class(LockiIdValidate)
 
+    #unregister panel 
+    bpy.utils.unregister_class(get_scripts.MESH_OT_add_subdiv_monkey)
+    bpy.utils.unregister_class(VIEW3D_PT_locki_panel)
 
 if __name__ == '__main__':
     register()
