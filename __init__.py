@@ -29,8 +29,9 @@ if 'communication' in locals():
     # noinspection PyUnboundLocalVariable
     profiles = importlib.reload(profiles)
     get_scripts = importlib.reload(get_scripts)
+    clean_scene = importlib.reload(clean_scene)
 else:
-    from . import communication, profiles, get_scripts
+    from . import communication, profiles, get_scripts, clean_scene
 LockiIdProfile = profiles.LockiIdProfile
 LockiIdCommError = communication.LockiIdCommError
 
@@ -324,7 +325,7 @@ class VIEW3D_PT_locki_panel(bpy.types.Panel):
         row = self.layout.row()
         row.operator("utils.get_nonce", text="Check MvX nonce")
         row = self.layout.row()
-        row.operator("object.delete", text="Clear object")
+        row.operator("mesh.clean_scene", text="Clear Scene")
         self.layout.separator()
         row = self.layout.row()
         row.operator("mesh.primitive_cube_add", text="Add Cube")
@@ -337,6 +338,8 @@ class VIEW3D_PT_locki_panel(bpy.types.Panel):
 
         row = self.layout.row()
         row.operator("mesh.add_subdiv_monkey", text="Add Subdivided Monkey")
+        row = self.layout.row()
+        row.operator("mesh.add_rotating_cube", text="Add rotating cube")
 
 
 def register():
@@ -351,6 +354,8 @@ def register():
     # register panel 
     bpy.utils.register_class(VIEW3D_PT_locki_panel)
     bpy.utils.register_class(get_scripts.MESH_OT_add_subdiv_monkey)
+    bpy.utils.register_class(get_scripts.MESH_OT_add_rotating_cube_obj)
+    bpy.utils.register_class(clean_scene.MESH_OT_clean_scene)
     # register mvx test
     bpy.utils.register_class(communication.UTILS_OT_get_nonce)
 
@@ -366,7 +371,9 @@ def unregister():
 
     #unregister panel 
     bpy.utils.unregister_class(get_scripts.MESH_OT_add_subdiv_monkey)
+    bpy.utils.unregister_class(get_scripts.MESH_OT_add_rotating_cube_obj)
     bpy.utils.unregister_class(VIEW3D_PT_locki_panel)
+    bpy.utils.unregister_class(clean_scene.MESH_OT_clean_scene)
 
     # register mvx test
     bpy.utils.unregister_class(communication.UTILS_OT_get_nonce)
