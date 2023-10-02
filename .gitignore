@@ -2,3 +2,4 @@ __pycache__
 .vscode
 data_nft.json
 token.json
+comm_test.py

@@ -57,18 +57,16 @@ class LockiIdProfile(metaclass=_BIPMeta):
                 print('Skipping key %r from profile JSON' % key)
 
     @classmethod
-    def save_json(cls, make_active_profile=False, make_valid_profile=False):
+    def save_json(cls, make_active_profile=False):
         """Updates the JSON file with the active profile information."""
 
         jsonfile = get_profiles_data()
-        jsonfile['profiles'][cls.api_key] = {
-            'address': cls.address,
+        jsonfile['profiles'][cls.address] = {
+            'api_key': cls.api_key,
             'token': cls.token,
             'expires': cls.expires,
             'nfts': cls.nfts,
         }
-        if make_valid_profile:
-            jsonfile['valid_profile'] = cls.address
 
         if make_active_profile:
             jsonfile['active_profile'] = cls.address
@@ -90,7 +88,7 @@ def _create_default_file():
 
     profiles_default_data = {
         'active_profile': None,
-        'profiles': {'address': None}
+        'profiles': {}
     }
 
     os.makedirs(profiles_path, exist_ok=True)
@@ -181,18 +179,6 @@ def save_profiles_data(all_profiles: dict):
 
     with open(profiles_file, 'w', encoding='utf8') as outfile:
         json.dump(all_profiles, outfile, sort_keys=True)
-
-def save_as_valid_address_profile(auth_result: communication.AuthResult, address, nfts):
-    """Saves the given info as the active profile."""
-
-    LockiIdProfile.address = auth_result.address
-    # LockiIdProfile.token = auth_result.token
-    # LockiIdProfile.expires = auth_result.expires
-    
-    LockiIdProfile.address = address
-    LockiIdProfile.nfts = nfts
-  
-    LockiIdProfile.save_json(make_valid_profile=True)
 
 def save_as_active_profile(auth_result: communication.AuthResult, api_key, nfts):
     """Saves the given info as the active profile."""

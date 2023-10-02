@@ -4,12 +4,14 @@ import functools
 import logging
 import typing
 import bpy
+from . import comm_test
 
 log = logging.getLogger(__name__)
 
 # Can be overridden by setting the environment variable LOCKI_ID_ENDPOINT. Overrid with localhost:3000 for development
 LOCKI_ID_ENDPOINT = 'http://localhost:3000/'  # JNS add port here
 MVX_ENDPOINT = 'https://devnet-api.multiversx.com/'
+
 # production LOCKI_ID_ENDPOINT = 'https://api.locki.io/'
 
 # Will become a requests.Session at the first request to Locki ID.
@@ -18,10 +20,8 @@ requests_session = None
 # Request timeout, in seconds.
 REQUESTS_TIMEOUT = 5.0
 
-
 class LockiIdCommError(RuntimeError):
     """Raised when there was an error communicating with Locki ID"""
-
 
 class AuthResult:
     def __init__(self, *, success: bool, address: str = None,
@@ -34,14 +34,12 @@ class AuthResult:
         self.error_message = str(error_message)
         self.expires = expires
 
-
 @functools.lru_cache(maxsize=None)
 def host_label():
     import socket
 
     # info on where Blender is running
     return 'Blender running on %r' % socket.gethostname()
-
 
 def locki_id_session():
     """Returns the Requests session, creating it if necessary."""
@@ -78,6 +76,8 @@ def locki_id_session():
     requests_session.headers['User-Agent'] = f'Blender/{blender_version} Locki-ID-Addon/{ addon_version }'
 
     return requests_session
+
+
 
 @functools.lru_cache(maxsize=None)
 def mvx_endpoint(endpoint_path=None):
@@ -153,7 +153,45 @@ def locki_id_endpoint(endpoint_path=None):
     # urljoin() is None-safe for the 2nd parameter.
     return urllib.parse.urljoin(base_url, endpoint_path)
 
+def server_less_getapikey (token) -> AuthResult:
+    import requests.exceptions
 
+    payload = dict(
+        #address=address,
+        token=token,
+        # secret=secret,
+        host_label=host_label()
+    )
+    # the SL server need an identify endpoint
+
+    url = comm_test.serverless_endpoint(u'/')
+    session = locki_id_session()
+    try:
+        r = session.post(url, data=payload, verify=True,
+                         timeout=REQUESTS_TIMEOUT)
+    except (requests.exceptions.SSLError,
+            requests.exceptions.HTTPError,
+            requests.exceptions.ConnectionError) as e:
+        msg = 'Exception POSTing to {}: {}'.format(url, e)
+        print(msg)
+        return AuthResult(success=False, error_message=msg)
+
+    if r.status_code == 200:
+        resp = r.json()
+        status = resp['status']
+        if status == 'success':
+            # defines the structure of the payload server side response
+            return AuthResult(success=True,
+                              api_key=str(resp['data']['apikey']), 
+                              nativeAuthToken=resp['data']['token_login']['nativeAuthToken'],
+                              expires=resp['data']['token_login']['expires'], 
+                              )
+        if status == 'fail':
+            return AuthResult(success=False, error_message='token is incorrect')
+
+    return AuthResult(success=False,
+                      error_message='There was a problem communicating with'
+                                    ' the server. Error code is: %s' % r.status_code)
 
 def locki_id_server_authenticate( api_key ) -> AuthResult:
     """Authenticate the user with the server with a single transaction
@@ -176,7 +214,7 @@ def locki_id_server_authenticate( api_key ) -> AuthResult:
     )
     # the locki api server need an identify endpoint
     # Satish to create the route the API /identity
-    url = locki_id_endpoint(u'/identify')
+    url = locki_id_endpoint(u'/')
     session = locki_id_session()
     try:
         r = session.post(url, data=payload, verify=True,
@@ -314,7 +352,7 @@ def get_nftlist_from_adress(address):
     import urllib
     import json
 
-    # address = 'erd19flra2au9gfhweggsax9qkg63r8vqq58drfdq2zcr28fk7nywduq4fcj7h'
+    
     base_url = mvx_endpoint()
     endpoint_path = 'accounts/' + address + '/nfts'
     url = urllib.parse.urljoin(base_url, endpoint_path)
