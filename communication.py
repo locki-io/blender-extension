@@ -9,7 +9,7 @@ log = logging.getLogger(__name__)
 
 # Can be overridden by setting the environment variable LOCKI_ID_ENDPOINT. Overrid with localhost:3000 for development
 LOCKI_ID_ENDPOINT = 'http://localhost:3000/'  # JNS add port here
-MVX_ENDPOINT = 'https://devnet-gateway.multiversx.com/'
+MVX_ENDPOINT = 'https://devnet-api.multiversx.com/'
 # production LOCKI_ID_ENDPOINT = 'https://api.locki.io/'
 
 # Will become a requests.Session at the first request to Locki ID.
@@ -24,10 +24,11 @@ class LockiIdCommError(RuntimeError):
 
 
 class AuthResult:
-    def __init__(self, *, success: bool,
+    def __init__(self, *, success: bool, address: str = None,
                  api_key: str = None, token: str = None, expires: str = None,
                  error_message: typing.Any = None):  # when success=False
         self.success = success
+        self.address = address
         self.api_key = api_key
         self.token = token
         self.error_message = str(error_message)
@@ -78,6 +79,61 @@ def locki_id_session():
 
     return requests_session
 
+@functools.lru_cache(maxsize=None)
+def mvx_endpoint(endpoint_path=None):
+    """Gets the endpoint for the authentication API. If the MVX_ENDPOINT env variable
+    is defined, it's possible to override the (default) production address.
+    """
+    import os
+    import urllib.parse
+
+    base_url = os.environ.get('MVX_ENDPOINT')
+    if base_url:
+        log.warning('Using overridden mvx url %s', base_url)
+    else:
+        base_url = MVX_ENDPOINT
+        log.info('Using standard mvx url %s', base_url)
+
+    # urljoin() is None-safe for the 2nd parameter.
+    return urllib.parse.urljoin(base_url, endpoint_path)
+
+def mvx_authenticate(address) -> AuthResult:
+    import requests.exceptions
+
+    # Payload is optional (GET) 
+    payload = dict(
+        address=address,
+        host_label=host_label()
+    )
+    # the mvx api server need no identify
+
+    # JNS create the route the API /identity
+    url = mvx_endpoint(u'/address/' + address + u'/nonce')
+    session = locki_id_session()
+    try:
+        r = session.get(url, data=payload, verify=True,
+                         timeout=REQUESTS_TIMEOUT)
+    except (requests.exceptions.SSLError,
+            requests.exceptions.HTTPError,
+            requests.exceptions.ConnectionError) as e:
+        msg = 'Exception POSTing to {}: {}'.format(url, e)
+        print(msg)
+        return AuthResult(success=False, error_message=msg)
+
+    if r.status_code == 200:
+        resp = r.json()
+        status = resp['code']
+        if status == 'successful':
+            # defines the structure of the payload server side response
+            return AuthResult(success=True
+                              )
+        if status == 'fail':
+            return AuthResult(success=False, error_message='address is incorrect')
+
+    return AuthResult(success=False,
+                      error_message='There was a problem communicating with'
+                                    ' the server. Error code is: %s' % r.status_code)
+
 
 @functools.lru_cache(maxsize=None)
 def locki_id_endpoint(endpoint_path=None):
@@ -97,46 +153,30 @@ def locki_id_endpoint(endpoint_path=None):
     # urljoin() is None-safe for the 2nd parameter.
     return urllib.parse.urljoin(base_url, endpoint_path)
 
-@functools.lru_cache(maxsize=None)
-def mvx_endpoint(endpoint_path=None):
-    """Gets the endpoint for the authentication API. If the MVX_ENDPOINT env variable
-    is defined, it's possible to override the (default) production address.
-    """
-    import os
-    import urllib.parse
 
-    base_url = os.environ.get('MVX_ENDPOINT')
-    if base_url:
-        log.warning('Using overridden mvx url %s', base_url)
-    else:
-        base_url = MVX_ENDPOINT
-        log.info('Using standard mvx url %s', base_url)
 
-    # urljoin() is None-safe for the 2nd parameter.
-    return urllib.parse.urljoin(base_url, endpoint_path)
-
-def locki_id_server_authenticate(key, secret) -> AuthResult:
+def locki_id_server_authenticate( api_key ) -> AuthResult:
     """Authenticate the user with the server with a single transaction
-    containing key and secret (must happen via HTTPS).
+    containing api_key (must happen via HTTPS).
 
     If the transaction is successful, status will be 'successful' and we
     return the user's unique locki id uuid and a token (that will be used to
     represent that key and secret combination).
     If there was a problem, status will be 'fail' and we return an error
-    message. Problems may be with the connection or wrong key/secret.
+    message. Problems may be with the connection or wrong api_key.
     """
 
     import requests.exceptions
 
     payload = dict(
-        key=key,
-        secret=secret,
+        #address=address,
+        api_key=api_key,
+        # secret=secret,
         host_label=host_label()
     )
-    # the locki api server need an identify param
-
-    # JNS create the route the API /identity
-    url = locki_id_endpoint('u/identify')
+    # the locki api server need an identify endpoint
+    # Satish to create the route the API /identity
+    url = locki_id_endpoint(u'/identify')
     session = locki_id_session()
     try:
         r = session.post(url, data=payload, verify=True,
@@ -154,15 +194,12 @@ def locki_id_server_authenticate(key, secret) -> AuthResult:
         if status == 'success':
             # defines the structure of the payload server side response
             return AuthResult(success=True,
-                              api_key=str(resp['data']['api_key']),
-                              # JNS to update as bearer token nativeAuth
-                              token=resp['data']['token_login']['loginToken'], # was ['oauth_token']['access_token'] 
-                              signature=resp['data']['token_login']['signature'], 
+                              address=str(resp['data']['address']), 
                               nativeAuthToken=resp['data']['token_login']['nativeAuthToken'],
-                              expires=resp['data']['token_login']['expires'], # was ['oauth_token']['expires'] 
+                              expires=resp['data']['token_login']['expires'], 
                               )
         if status == 'fail':
-            return AuthResult(success=False, error_message='api-key and/or key-secret is incorrect')
+            return AuthResult(success=False, error_message='api-key is incorrect')
 
     return AuthResult(success=False,
                       error_message='There was a problem communicating with'
@@ -182,7 +219,7 @@ def locki_id_server_validate(token) -> typing.Tuple[typing.Optional[str], typing
 
     import requests.exceptions
 
-    url = locki_id_endpoint('u/validate_token')  # JNS route to make up
+    url = mvx_endpoint(u'/validate_token')  # JNS change route to transaction to pingpong
     session = locki_id_session()
     try:
         r = session.post(url, data={'token': token},
@@ -201,7 +238,7 @@ def locki_id_server_validate(token) -> typing.Tuple[typing.Optional[str], typing
     return response['token_expires'], None
 
 
-def locki_id_server_logout(api_key, token):
+def locki_id_server_logout(address, token):
     """Logs out of the Locki ID service by removing the token server-side.
 
     @param api_key: the apikey of the user.
@@ -215,12 +252,12 @@ def locki_id_server_logout(api_key, token):
     import requests.exceptions
 
     payload = dict(
-        api_key=api_key,
+        address=address,
         token=token
     )
     session = locki_id_session()
     try:
-        r = session.post(locki_id_endpoint('u/delete_token'),
+        r = session.post(locki_id_endpoint(u'/delete_token'),
                          data=payload, verify=True, timeout=REQUESTS_TIMEOUT)
     except (requests.exceptions.SSLError,
             requests.exceptions.HTTPError,
@@ -253,7 +290,7 @@ def make_authenticated_call(method, url, auth_token, data):
     session = locki_id_session()
     try:
         r = session.request(method,
-                            locki_id_endpoint(url),
+                            mvx_endpoint(url),
                             data=data,
                             headers={
                                 'Authorization': 'Bearer %s' % auth_token},
@@ -265,12 +302,121 @@ def make_authenticated_call(method, url, auth_token, data):
 
     return r
 
-def show_message(message):
+def show_message(input, message):
     def draw(self, context):
         self.layout.label(text=message)
+    
+    bpy.context.window_manager.popup_menu(draw, title="Result for "+input, icon='INFO')
 
-    bpy.context.window_manager.popup_menu(draw, title="Result", icon='INFO')
+def get_nftlist_from_adress(address):
+    import requests.exceptions
+    import os
+    import urllib
+    import json
 
+    # address = 'erd19flra2au9gfhweggsax9qkg63r8vqq58drfdq2zcr28fk7nywduq4fcj7h'
+    base_url = mvx_endpoint()
+    endpoint_path = 'accounts/' + address + '/nfts'
+    url = urllib.parse.urljoin(base_url, endpoint_path)
+
+    session = locki_id_session()
+    try:
+        r = session.request('get',
+                            url,
+                            timeout=REQUESTS_TIMEOUT)
+    except (requests.exceptions.HTTPError,
+            requests.exceptions.ConnectionError) as e:
+        raise LockiIdCommError(str(e))
+
+    try:
+        resp = r.json()
+        #print(resp)
+    except ValueError as e:
+        raise LockiIdCommError(f'Failed to decode JSON: {e}')
+
+    if resp is None:
+        raise LockiIdCommError('NFT not found in response')
+
+    return resp['data']
+
+def get_urllist_from_list(nftlist):
+    result = []
+    for item in nftlist:
+        if 'media' in item and item['media']:  # Check if 'media' key exists and is not empty
+            identifier = item['identifier']
+            media = item['media'][0]  # Assuming 'media' is a list and taking the first element
+            uris = item.get('uris', [])  # Get 'uris' or default to an empty list if it doesn't exist
+            
+            # Extracting required fields from 'media'
+            original_url = media.get('originalUrl', '')
+            thumbnail_url = media.get('thumbnailUrl', '')
+            url = media.get('url', '')
+
+            # Formatting uris
+            uri_dict = {f'uri{i + 1}': uri for i, uri in enumerate(uris)}
+        
+            result.append({
+                'identifier': identifier,
+                'originalUrl': original_url,
+                'thumbnailUrl': thumbnail_url,
+                'url': url,
+                **uri_dict  # This syntax merges the uri_dict into the result dictionary
+            })
+    return result
+
+class enum_mynfts_properties(bpy.types.PropertyGroup):
+    enum_nft : bpy.props.EnumProperty(
+        items=[
+            ('OPTION1', "Option 1", "Description 1"),
+            ('OPTION2', "Option 2", "Description 2"),
+            ('OPTION3', "Option 3", "Description 3")
+        ],
+        name= "Enum Nfts",
+        default = 'OPTION1',
+    )
+
+class UTILS_OT_show_nft_combobox(bpy.types.Operator):
+
+    """Create a combobox for NFT """
+
+    bl_idname = "utils.show_nft_combobox"
+    bl_label = "NFTs:"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        
+        return {"FINISHED"}
+
+class UTILS_OT_get_nfts(bpy.types.Operator):
+    
+    """Get NFT from MvX address """
+
+    bl_idname = "utils.get_nfts"
+    bl_label = "get urls from nfts"
+    bl_options = {"REGISTER", "UNDO"}
+
+    address: bpy.props.StringProperty(
+        name="address",
+        default= 'erd19flra2au9gfhweggsax9qkg63r8vqq58drfdq2zcr28fk7nywduq4fcj7h',
+        description="Wallet address",
+    )
+
+    def execute(self, context):
+        nft_list = get_nftlist_from_adress(self.address)
+        nft_urls = get_urllist_from_list(nft_list)
+
+        def draw_combobox(self, context):
+            layout = self.layout
+            scene = context.scene
+            # my_props = scene.my_tool
+            # layout.prop(my_props, "my_enum", text="Select an Option")
+
+        bpy.types.VIEW3D_PT_locki_panel.append(draw_combobox)
+        
+
+        #for item in nft_urls:
+        #    if 'media' in item and item['media']:                 
+        return {"FINISHED"}
 
 def check_address_nonce(address):
     import requests.exceptions
@@ -321,5 +467,6 @@ class UTILS_OT_get_nonce(bpy.types.Operator):
     def execute(self, context):
         # print(self.address)
         nonce = check_address_nonce(self.address)
-        show_message(f"Nonce: {nonce}")
+        show_message(self.address, f"Nonce: {nonce}")
         return {"FINISHED"}
+    
