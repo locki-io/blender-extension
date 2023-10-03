@@ -3,7 +3,7 @@
 import functools
 import logging
 import typing
-import bpy
+
 from . import comm_test
 
 log = logging.getLogger(__name__)
@@ -29,6 +29,16 @@ class AuthResult:
                  error_message: typing.Any = None):  # when success=False
         self.success = success
         self.address = address
+        self.api_key = api_key
+        self.token = token
+        self.error_message = str(error_message)
+        self.expires = expires
+
+class AuthResultSL:
+    def __init__(self, *, success: bool, 
+                 api_key: str = None, token: str = None, expires: str = None,
+                 error_message: typing.Any = None):  # when success=False
+        self.success = success
         self.api_key = api_key
         self.token = token
         self.error_message = str(error_message)
@@ -77,8 +87,6 @@ def locki_id_session():
 
     return requests_session
 
-
-
 @functools.lru_cache(maxsize=None)
 def mvx_endpoint(endpoint_path=None):
     """Gets the endpoint for the authentication API. If the MVX_ENDPOINT env variable
@@ -105,9 +113,7 @@ def mvx_authenticate(address) -> AuthResult:
         address=address,
         host_label=host_label()
     )
-    # the mvx api server need no identify
 
-    # JNS create the route the API /identity
     url = mvx_endpoint(u'/address/' + address + u'/nonce')
     session = locki_id_session()
     try:
@@ -153,13 +159,11 @@ def locki_id_endpoint(endpoint_path=None):
     # urljoin() is None-safe for the 2nd parameter.
     return urllib.parse.urljoin(base_url, endpoint_path)
 
-def server_less_getapikey (token) -> AuthResult:
+def server_less_getapikey (token) -> AuthResultSL:
     import requests.exceptions
 
     payload = dict(
-        #address=address,
         token=token,
-        # secret=secret,
         host_label=host_label()
     )
     # the SL server need an identify endpoint
@@ -198,8 +202,7 @@ def locki_id_server_authenticate( api_key ) -> AuthResult:
     containing api_key (must happen via HTTPS).
 
     If the transaction is successful, status will be 'successful' and we
-    return the user's unique locki id uuid and a token (that will be used to
-    represent that key and secret combination).
+    return the user's token (that will be used to authenticate).
     If there was a problem, status will be 'fail' and we return an error
     message. Problems may be with the connection or wrong api_key.
     """
@@ -207,14 +210,12 @@ def locki_id_server_authenticate( api_key ) -> AuthResult:
     import requests.exceptions
 
     payload = dict(
-        #address=address,
         api_key=api_key,
-        # secret=secret,
         host_label=host_label()
     )
     # the locki api server need an identify endpoint
-    # Satish to create the route the API /identity
-    url = locki_id_endpoint(u'/')
+    # create the route the API /identity
+    url = locki_id_endpoint(u'/identity')
     session = locki_id_session()
     try:
         r = session.post(url, data=payload, verify=True,
@@ -232,8 +233,7 @@ def locki_id_server_authenticate( api_key ) -> AuthResult:
         if status == 'success':
             # defines the structure of the payload server side response
             return AuthResult(success=True,
-                              address=str(resp['data']['address']), 
-                              nativeAuthToken=resp['data']['token_login']['nativeAuthToken'],
+                              token=resp['data']['token_login']['nativeAuthToken'],
                               expires=resp['data']['token_login']['expires'], 
                               )
         if status == 'fail':
@@ -319,8 +319,7 @@ def locki_id_server_logout(address, token):
         error_message=None
     )
 
-
-def make_authenticated_call(method, url, auth_token, data):
+def make_authenticated_call(method, url, token, data):
     """Makes a HTTP call authenticated with the nativeAuth token."""
 
     import requests.exceptions
@@ -331,7 +330,7 @@ def make_authenticated_call(method, url, auth_token, data):
                             mvx_endpoint(url),
                             data=data,
                             headers={
-                                'Authorization': 'Bearer %s' % auth_token},
+                                'Authorization': 'Bearer %s' % token},
                             verify=True,
                             timeout=REQUESTS_TIMEOUT)
     except (requests.exceptions.HTTPError,
@@ -339,172 +338,3 @@ def make_authenticated_call(method, url, auth_token, data):
         raise LockiIdCommError(str(e))
 
     return r
-
-def show_message(input, message):
-    def draw(self, context):
-        self.layout.label(text=message)
-    
-    bpy.context.window_manager.popup_menu(draw, title="Result for "+input, icon='INFO')
-
-def get_nftlist_from_adress(address):
-    import requests.exceptions
-    import os
-    import urllib
-    import json
-
-    
-    base_url = mvx_endpoint()
-    endpoint_path = 'accounts/' + address + '/nfts'
-    url = urllib.parse.urljoin(base_url, endpoint_path)
-
-    session = locki_id_session()
-    try:
-        r = session.request('get',
-                            url,
-                            timeout=REQUESTS_TIMEOUT)
-    except (requests.exceptions.HTTPError,
-            requests.exceptions.ConnectionError) as e:
-        raise LockiIdCommError(str(e))
-
-    try:
-        resp = r.json()
-        #print(resp)
-    except ValueError as e:
-        raise LockiIdCommError(f'Failed to decode JSON: {e}')
-
-    if resp is None:
-        raise LockiIdCommError('NFT not found in response')
-
-    return resp['data']
-
-def get_urllist_from_list(nftlist):
-    result = []
-    for item in nftlist:
-        if 'media' in item and item['media']:  # Check if 'media' key exists and is not empty
-            identifier = item['identifier']
-            media = item['media'][0]  # Assuming 'media' is a list and taking the first element
-            uris = item.get('uris', [])  # Get 'uris' or default to an empty list if it doesn't exist
-            
-            # Extracting required fields from 'media'
-            original_url = media.get('originalUrl', '')
-            thumbnail_url = media.get('thumbnailUrl', '')
-            url = media.get('url', '')
-
-            # Formatting uris
-            uri_dict = {f'uri{i + 1}': uri for i, uri in enumerate(uris)}
-        
-            result.append({
-                'identifier': identifier,
-                'originalUrl': original_url,
-                'thumbnailUrl': thumbnail_url,
-                'url': url,
-                **uri_dict  # This syntax merges the uri_dict into the result dictionary
-            })
-    return result
-
-class enum_mynfts_properties(bpy.types.PropertyGroup):
-    enum_nft : bpy.props.EnumProperty(
-        items=[
-            ('OPTION1', "Option 1", "Description 1"),
-            ('OPTION2', "Option 2", "Description 2"),
-            ('OPTION3', "Option 3", "Description 3")
-        ],
-        name= "Enum Nfts",
-        default = 'OPTION1',
-    )
-
-class UTILS_OT_show_nft_combobox(bpy.types.Operator):
-
-    """Create a combobox for NFT """
-
-    bl_idname = "utils.show_nft_combobox"
-    bl_label = "NFTs:"
-    bl_options = {"REGISTER", "UNDO"}
-
-    def execute(self, context):
-        
-        return {"FINISHED"}
-
-class UTILS_OT_get_nfts(bpy.types.Operator):
-    
-    """Get NFT from MvX address """
-
-    bl_idname = "utils.get_nfts"
-    bl_label = "get urls from nfts"
-    bl_options = {"REGISTER", "UNDO"}
-
-    address: bpy.props.StringProperty(
-        name="address",
-        default= 'erd19flra2au9gfhweggsax9qkg63r8vqq58drfdq2zcr28fk7nywduq4fcj7h',
-        description="Wallet address",
-    )
-
-    def execute(self, context):
-        nft_list = get_nftlist_from_adress(self.address)
-        nft_urls = get_urllist_from_list(nft_list)
-
-        def draw_combobox(self, context):
-            layout = self.layout
-            scene = context.scene
-            # my_props = scene.my_tool
-            # layout.prop(my_props, "my_enum", text="Select an Option")
-
-        bpy.types.VIEW3D_PT_locki_panel.append(draw_combobox)
-        
-
-        #for item in nft_urls:
-        #    if 'media' in item and item['media']:                 
-        return {"FINISHED"}
-
-def check_address_nonce(address):
-    import requests.exceptions
-    import os
-    import urllib
-    # address = 'erd19flra2au9gfhweggsax9qkg63r8vqq58drfdq2zcr28fk7nywduq4fcj7h'
-    base_url = mvx_endpoint()
-    endpoint_path = 'address/' + address + '/nonce'
-    url = urllib.parse.urljoin(base_url, endpoint_path)
-
-    session = locki_id_session()
-    try:
-        r = session.request('get',
-                            url,
-                            timeout=REQUESTS_TIMEOUT)
-    except (requests.exceptions.HTTPError,
-            requests.exceptions.ConnectionError) as e:
-        raise LockiIdCommError(str(e))
-
-    try:
-        resp = r.json()
-        print(resp)
-    except ValueError as e:
-        raise LockiIdCommError(f'Failed to decode JSON: {e}')
-
-    # Assume the desired value is in a key called 'desired_key' in the JSON structure
-    nonce = resp.get('data', {}).get('nonce', None)
-
-    if nonce is None:
-        raise LockiIdCommError('Nonce not found in response')
-
-    return nonce
-    # return r
-
-class UTILS_OT_get_nonce(bpy.types.Operator):
-    """Get nonce from MvX address """
-
-    bl_idname = "utils.get_nonce"
-    bl_label = "get address nonce"
-    bl_options = {"REGISTER", "UNDO"}
-
-    address: bpy.props.StringProperty(
-        name="address",
-        default= 'erd19flra2au9gfhweggsax9qkg63r8vqq58drfdq2zcr28fk7nywduq4fcj7h',
-        description="Wallet address",
-    )
-
-    def execute(self, context):
-        # print(self.address)
-        nonce = check_address_nonce(self.address)
-        show_message(self.address, f"Nonce: {nonce}")
-        return {"FINISHED"}
-    

@@ -3,3 +3,9 @@ __pycache__
 data_nft.json
 token.json
 comm_test.py
+viewDataViaMVXNativeAuth.ts
+.env.local
+.env
+__pycache__/communication.cpython-310.pyc
+__pycache__/__init__.cpython-310.pyc
+__pycache__/profiles.cpython-310.pyc

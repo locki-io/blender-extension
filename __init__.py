@@ -13,12 +13,11 @@ bl_info = {
     'author': 'Jean-Noël Schilling',
     'version': (0, 1, 3),
     'blender': (3, 6, 2),
-    'location': 'Add-on preferences',
+    'location': 'Add-on preferences + panel',
     'description':
         'Stores your Locki ID credentials(API key-secret) for usage of your stored NFT',
     'category': 'System'
 }
-# address = 'erd19flra2au9gfhweggsax9qkg63r8vqq58drfdq2zcr28fk7nywduq4fcj7h'
 
 if 'communication' in locals():
     import importlib
@@ -29,9 +28,11 @@ if 'communication' in locals():
     profiles = importlib.reload(profiles)
     get_scripts = importlib.reload(get_scripts)
     clean_scene = importlib.reload(clean_scene)
+    mvx_requests = importlib.reload(mvx_requests)
     datanft_menu = importlib.reload(datanft_menu)
 else:
-    from . import communication, profiles, get_scripts, clean_scene, datanft_menu
+    from . import communication, profiles, get_scripts, clean_scene, mvx_requests, datanft_menu
+
 LockiIdProfile = profiles.LockiIdProfile
 LockiIdCommError = communication.LockiIdCommError
 
@@ -40,10 +41,6 @@ log = logging.getLogger(__name__)
 # note assumption no subclient token but nft_list
 __all__ = ('get_active_profile', 'get_active_address', 'create_nft_list',
            'is_logged_in', 'LockiIdProfile', 'LockiIdCommError')
-
-# Public API functions
-
-# in blender userid is an UUID associated to the user, but on MVX we use the bech32
 
 
 def get_active_address() -> str:
@@ -71,62 +68,6 @@ def is_logged_in() -> bool:
     """Returns whether the user is logged in on Locki ID or not."""
 
     return bool(LockiIdProfile.address)
-
-def create_nft_urls(address: str, webservice_endpoint: str) -> dict:
-    """Lets the address create a NFT list in the profile.
-
-    :param address: the address of the wallet
-    :param end point the mvx endpoint .
-    :returns: the list of NFTs (with urls and other required info)
-    :raises: locki_id.communication.LockiIdCommError when the nft list is not provided.
-    """
-
-    # Communication between us and MvX.
-    # profile = get_valid_profile()
-    mvx_info = communication.get_urllist_from_list(address, webservice_endpoint)
-    nft_identifier = mvx_info['identifier']
-
-    # Send the token to the webservice.
-    #user_id = communication.send_token_to_subclient(webservice_endpoint, profile.user_id,
-    #                                                subclient_token, subclient_id)
-
-    # Now that everything is okay we can store the token locally.
-    LockiIdProfile.nfts[address] = {'nft': nft_identifier}
-    LockiIdProfile.save_json()
-
-    return mvx_info
-
-def get_nfts_of_user(address: str) -> str:
-    """Returns the nfts from the user.
-
-    Requires that the user has been authenticated at the subclient using
-    a call to create_subclient_token(...)
-
-    :returns: the subclient-local user ID, or the empty string if not logged in.
-    """
-
-    if not LockiIdProfile.address:
-        return ''
-
-    return LockiIdProfile.nfts[address]['identifier']
-
-def validate_token() -> typing.Optional[str]:
-    """Validates the current user's token with Locki ID.
-
-    Also refreshes the stored token expiry time.
-
-    :returns: None if everything was ok, otherwise returns an error message.
-    """
-
-    expires, err = communication.locki_id_server_validate(
-        token=LockiIdProfile.token)
-    if err is not None:
-        return err
-
-    LockiIdProfile.expires = expires
-    LockiIdProfile.save_json()
-
-    return None
 
 
 def token_expires() -> typing.Optional[datetime.datetime]:
@@ -254,7 +195,6 @@ class LockiIdPreferences(AddonPreferences):
             
         else:
             layout.prop(self, 'address')
-            layout.operator('address_check.login')
 
             layout.prop(self, 'api_key')
             # layout.prop(self, 'api_secret')
@@ -353,6 +293,23 @@ class LockiIdValidate(LockiIdMixin, Operator):
 
         return {'FINISHED'}
 
+def validate_token() -> typing.Optional[str]:
+    """Validates the current user's token with Locki ID.
+
+    Also refreshes the stored token expiry time.
+
+    :returns: None if everything was ok, otherwise returns an error message.
+    """
+
+    expires, err = communication.locki_id_server_validate(
+        token=LockiIdProfile.token)
+    if err is not None:
+        return err
+
+    LockiIdProfile.expires = expires
+    LockiIdProfile.save_json()
+
+    return None
 
 class LockiIdLogout(LockiIdMixin, Operator):
     bl_idname = 'locki_id.logout'
@@ -370,6 +327,83 @@ class LockiIdLogout(LockiIdMixin, Operator):
         addon_prefs.ok_message = tip_('You have been logged out')
         return {'FINISHED'}
 
+class UTILS_OT_get_nonce(LockiIdMixin, bpy.types.Operator):
+    """Get nonce from MvX address """
+
+    bl_idname = "utils.get_nonce"
+    bl_label = "get address nonce"
+    bl_options = {"REGISTER", "UNDO"}
+
+    # Check if an address in in the LockiID otherwise  
+    # if LockiIdProfile.read_json() is None:
+    #     #JNS to change on startup
+    #     LockiIdProfile.address: bpy.props.StringProperty(
+    #         name="address",
+    #         default= 'erd19flra2au9gfhweggsax9qkg63r8vqq58drfdq2zcr28fk7nywduq4fcj7h',
+    #         description="Default Wallet address",
+    #     )
+    #     LockiIdProfile.save_json(make_active_profile=True)
+        
+
+    def execute(self, context):
+        addon_prefs = self.addon_prefs(context)
+        result = mvx_requests.check_address_nonce(LockiIdProfile.address)
+
+        if result:
+            
+            LockiIdProfile.nonce = result["nonce"]
+            LockiIdProfile.save_json()
+        mvx_requests.show_message(result['address'], f"Nonce: {result['nonce']}")
+
+        LockiIdProfile.read_json()
+        return {"FINISHED"}
+
+class UTILS_OT_get_nfts(LockiIdMixin, bpy.types.Operator):
+    
+    """Get NFT from MvX address """
+
+    bl_idname = "utils.get_nfts"
+    bl_label = "get urls from nfts"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        import json
+        addon_prefs = self.addon_prefs(context)
+
+        nft_list = mvx_requests.get_nftlist_from_address(LockiIdProfile.address)
+        nft_urls = mvx_requests.get_urllist_from_list(nft_list)
+
+        # store them into the profile 
+        LockiIdProfile.nfts = nft_urls
+        LockiIdProfile.save_json()
+
+        addon_prefs.ok_message = tip_('You have loaded the NFTs')
+        LockiIdProfile.read_json()
+        
+        return {"FINISHED"}
+
+class enum_mynfts_properties(bpy.types.PropertyGroup):
+    enum_nft : bpy.props.EnumProperty(
+        items=[
+            ('OPTION1', "Option 1", "Description 1"),
+            ('OPTION2', "Option 2", "Description 2"),
+            ('OPTION3', "Option 3", "Description 3")
+        ],
+        name= "Enum Nfts",
+        default = 'OPTION1',
+    )
+
+class UTILS_OT_show_nft_combobox(bpy.types.Operator):
+
+    """Create a combobox for NFT """
+
+    bl_idname = "utils.show_nft_combobox"
+    bl_label = "NFTs:"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        
+        return {"FINISHED"}
 
 # class naming convention ‘CATEGORY_PT_name’
 class VIEW3D_PT_locki_panel(bpy.types.Panel):
@@ -425,13 +459,12 @@ def register():
     bpy.utils.register_class(get_scripts.MESH_OT_add_rotating_cube_obj)
     bpy.utils.register_class(clean_scene.MESH_OT_clean_scene)
     # register mvx + SL test
-    bpy.utils.register_class(communication.UTILS_OT_get_nonce)
-    bpy.utils.register_class(communication.UTILS_OT_get_nfts)
+    bpy.utils.register_class(UTILS_OT_get_nonce)
+    bpy.utils.register_class(UTILS_OT_get_nfts)
     bpy.utils.register_class(SlLogin)
     # register props NFTs 
-    bpy.utils.register_class(communication.enum_mynfts_properties)
-    bpy.types.Scene.my_tool = bpy.props.PointerProperty(type=communication.enum_mynfts_properties)
-    bpy.utils.register_class(communication.UTILS_OT_show_nft_combobox)
+    bpy.utils.register_class(enum_mynfts_properties)    
+    bpy.utils.register_class(UTILS_OT_show_nft_combobox)
 
     preferences = LockiIdMixin.addon_prefs(bpy.context)
     preferences.reset_messages()
@@ -446,18 +479,17 @@ def unregister():
     # unregister scripts
     bpy.utils.unregister_class(get_scripts.MESH_OT_add_subdiv_monkey)
     bpy.utils.unregister_class(get_scripts.MESH_OT_add_rotating_cube_obj)
-    
+
     bpy.utils.unregister_class(clean_scene.MESH_OT_clean_scene)
 
     # unregister mvx test
-    bpy.utils.unregister_class(communication.UTILS_OT_get_nonce)
-    bpy.utils.unregister_class(communication.UTILS_OT_get_nfts)
+    bpy.utils.unregister_class(UTILS_OT_get_nonce)
+    bpy.utils.unregister_class(UTILS_OT_get_nfts)
     bpy.utils.unregister_class(SlLogin)
 
     # unregister nft list elements
-    del bpy.types.Scene.my_tool
-    bpy.utils.unregister_class(communication.enum_mynfts_properties)
-    bpy.utils.unregister_class(communication.UTILS_OT_show_nft_combobox)
+    bpy.utils.unregister_class(enum_mynfts_properties)
+    bpy.utils.unregister_class(UTILS_OT_show_nft_combobox)
 
     # unregister panel 
     bpy.utils.unregister_class(VIEW3D_PT_locki_panel)

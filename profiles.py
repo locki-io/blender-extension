@@ -25,12 +25,12 @@ class LockiIdProfile(metaclass=_BIPMeta):
     This is always stored at class level, as there is only one current
     profile anyway.
     """
-
     address = ''
     api_key = ''
     token = ''
     expires = ''
     nfts = {}
+    nonce = "0"
 
     @classmethod
     def reset(cls):
@@ -38,7 +38,8 @@ class LockiIdProfile(metaclass=_BIPMeta):
         cls.api_key = ''
         cls.token = ''
         cls.expires = ''
-        cls.nfts = {}
+        cls.nfts = []
+        cls.none = "0"
 
     @classmethod
     def read_json(cls):
@@ -66,6 +67,7 @@ class LockiIdProfile(metaclass=_BIPMeta):
             'token': cls.token,
             'expires': cls.expires,
             'nfts': cls.nfts,
+            'nonce': cls.nonce,
         }
 
         if make_active_profile:
@@ -88,7 +90,7 @@ def _create_default_file():
 
     profiles_default_data = {
         'active_profile': None,
-        'profiles': {}
+        "profiles": {}
     }
 
     os.makedirs(profiles_path, exist_ok=True)
@@ -157,7 +159,7 @@ def get_active_profile():
 
 
 def get_profile(address):
-    """Loads the profile data for a given api_key if existing
+    """Loads the profile data for a given address if existing
     else it returns None.
     """
 
@@ -169,7 +171,9 @@ def get_profile(address):
     return dict(
         address=profile['address'],
         api_key=profile['api_key'],
-        token=profile['token']
+        token=profile['token'],
+        nfts=profile['nfts'],
+        nonce=profile['nonce'],
     )
 
 
@@ -180,16 +184,15 @@ def save_profiles_data(all_profiles: dict):
     with open(profiles_file, 'w', encoding='utf8') as outfile:
         json.dump(all_profiles, outfile, sort_keys=True)
 
-def save_as_active_profile(auth_result: communication.AuthResult, api_key, nfts):
+def save_as_active_profile(auth_result: communication.AuthResult, api_key, nfts, nonce):
     """Saves the given info as the active profile."""
 
     LockiIdProfile.address = auth_result.address
     LockiIdProfile.token = auth_result.token
     LockiIdProfile.expires = auth_result.expires
-
-    
     LockiIdProfile.api_key = api_key
     LockiIdProfile.nfts = nfts
+    LockiIdProfile.nonce = nonce
   
     LockiIdProfile.save_json(make_active_profile=True)
 
