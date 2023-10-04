@@ -38,6 +38,10 @@ This project is currently in its **alpha** phase and is primarily a proof of con
 
 Feedback, bug reports, and contributions are highly appreciated. Feel free to open issues or submit pull requests.
 
+# Inspirations from creators 
+
+Thanks for the inspiration from CGpython, Erindale and Khamurai to bring Geometry nodes to our knowledge and passion! 
+
 ## License
 
 GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
