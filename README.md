@@ -4,7 +4,7 @@ Connect Blender to the MultiversX ecosystem, bridging the gap between 3D creatio
 
 ## Introduction
 
-The main goal of this addon is to seamlessly integrate Blender with the MultiversX ecosystem. This facilitates 3D artists, designers, and developers in the realization of 3D creation and generative design. Using this addon, users can manage the 3D data stored in their MultiversX devnet wallets and harness Blender's capabilities to construct, modify, and visualize 3D assets. From primitive CAD constructions to intricate meshes, and even the underlying Python code, everything is made accessible and manageable.
+The main goal of this addon is to seamlessly integrate Blender with the MultiversX ecosystem. This facilitates 3D artists, designers, and developers in the realization of 3D creation and generative design. Using this addon, users can manage the 3D data stored in their MultiversX devnet wallets and harness Blender's capabilities to construct, modify, and visualize 3D assets. From primitive CAD constructions to intricate meshes, and even the underlying Python code, everything is (will be) made accessible and manageable.
 
 One of the prominent features is the integration with Blender's powerful Geometry Nodes, leveraging their capabilities to accelerate and enhance 3D creation processes.
 
