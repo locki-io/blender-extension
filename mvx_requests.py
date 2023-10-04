@@ -39,6 +39,18 @@ def get_nftlist_from_address(address):
 def get_urllist_from_list(nftlist):
     result = []
     for item in nftlist:
+        if 'assets' in item and item['assets']:
+            identifier = item['identifier']
+            assets = item['assets']
+            svg_url = assets.get('svgUrl','')
+            png_url = assets.get('pngUrl','')
+
+            result.append({
+                'identifier': identifier,
+                'svgUrl': svg_url,
+                'pngUrl': png_url,
+            })
+
         if 'media' in item and item['media']:  # Check if 'media' key exists and is not empty
             identifier = item['identifier']
             media = item['media'][0]  # Assuming 'media' is a list and taking the first element
