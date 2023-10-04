@@ -10,13 +10,15 @@ The MultiversX Blender Addon establishes a symbiotic link between Blender and th
 
 One of the prominent features is the integration with Blender's powerful Geometry Nodes, leveraging their capabilities to accelerate and enhance 3D creation processes.
 
+By integrating with `locki.io`, this addon promotes a revolutionary sharing system, allowing unparalleled synergy between designers and those commissioning designs.
+
 > **Note**: The product is currently in its alpha phase, crafted specifically for the MultiversX-Encode Hackathon. Your insights and feedback will be instrumental in shaping its trajectory!
 
 ## Requirements
 
 - **Blender**: Ensure you're running a compatible version of Blender. [Download the latest version here](https://www.blender.org/download/).
-- **MultiversX Devnet Wallet**: Before using this addon, you must possess a wallet on the MultiversX devnet this can be create [here](https://devnet-wallet.multiversx.com/create).
-- **API Key from app.locki.io**: Connect your MultiversX devnet wallet to [app.locki.io](https://app.locki.io) and obtain a connection API key. This key allows the addon to communicate and manage 3D data from your wallet.
+- **MultiversX Devnet Wallet**: Before using this addon, you must possess a wallet on the MultiversX devnet.
+- **API Key from app.locki.io**: **soon** ~~Connect your MultiversX devnet wallet to [app.locki.io](https://app.locki.io) and obtain a connection API key. This key allows the addon to communicate and manage 3D data from your wallet.~~
 
 ## Installation
 
@@ -50,12 +52,21 @@ In the realm of this addon, we introduce innovative NFT categories:
 - **Evolutive Coded DataNFT**: Another Itheum-backed NFT, this variant is dynamic in nature. It consists of a preview thumbnail, an intricate preview, concealed Python code (`.bpy`), and a `.json` file with adaptable links. These links can be periodically updated by the creator, ensuring compatibility with software evolution. Here too, concealed assets are a privilege of the NFT owner.
 
 - **Configurable DataNFT**: Rooted in Itheum's capabilities, this NFT is parametric. It showcases a preview thumbnail, a detailed preview, and a concealed parametric mesh (`.gltf`). This allows the owner to tweak certain parameters, customizing the mesh as per their desires.
+![Open up the panel](images/openpanel.png)
+
+Enjoy!
 
 ## Status & Contribution
 
 This project is currently in its **alpha** phase and is primarily a proof of concept for the MultiversX-Encode Hackathon. We're investing significant efforts to ensure its stability, extend its features, and enhance usability.
 
 Feedback, bug reports, and contributions are highly appreciated. Feel free to open issues or submit pull requests.
+
+Happy Designing with MultiversX Blender Addon!
+
+## Inspiration / Credits
+
+Thanks to CGPython, Erindale and Khamurai for their inspiration towards blender and geometry nodes
 
 ---
 
