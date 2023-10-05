@@ -59,9 +59,6 @@ This project is currently in its **alpha** phase and is primarily a proof of con
 
 Feedback, bug reports, and contributions are highly appreciated. Feel free to open issues or submit pull requests.
 
-Happy Designing with MultiversX Blender Addon!
-
----
 Embark on a transformative design journey with MultiversX Blender Addon!
 ---
 
