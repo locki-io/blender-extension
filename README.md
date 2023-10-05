@@ -2,7 +2,7 @@
 
 Connect Blender to the MultiversX ecosystem, bridging the gap between 3D creation, generative design, and blockchain technology. 
 
-## ✨ "You mint, lucky you!" ✨
+## ✨ You mint, lucky you! ✨
 
 ## Introduction
 
@@ -55,14 +55,31 @@ This project is currently in its **alpha** phase and is primarily a proof of con
 
 Feedback, bug reports, and contributions are highly appreciated. Feel free to open issues or submit pull requests.
 
-# Inspirations from creators 
-
-Thanks for the inspiration from CGpython, Erindale and Khamurai to bring Geometry nodes to our knowledge and passion! 
-
 ---
 
 Embark on a transformative design journey with MultiversX Blender Addon!
 
-## License
+# Inspirations from creators 
 
-GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
+Thanks for the inspiration from 
+[CGpython](https://github.com/VictorStepanov): for having a structured approach of the python capabilities of Blender and its combination of use with geometry nodes.
+[Erindale](https://github.com/Erindale) : The usage from svershok addon to blender geometry nodes 
+[Khamurai](https://www.patreon.com/khamurai) for his tentable inspiring video.
+
+They brought Geometry nodes to our knowledge and passion! 
+
+
+
+## GNU General Public License version 3 (GPLv3)
+
+The GNU General Public License version 3 (GPLv3) is a free software license that ensures the freedom for users to run, study, share, and modify the software licensed under it. Here are its key provisions:
+
+- **Freedom to Use**: Users can run the software for any purpose.
+- **Freedom to Study and Modify**: Users have access to the source code and can modify it.
+- **Freedom to Share**: Users can redistribute the software and their modifications.
+- **Copyleft**: If users distribute modified versions of the software, they must also license their changes under the GPLv3. This principle ensures that derivative works remain free.
+- **Protection Against Software Patent Claims**: The license provides safeguards against potential patent litigation.
+- **Compatibility**: It addresses compatibility concerns with other licenses.
+- **Tivoization**: GPLv3 contains measures against "tivoization", where hardware restrictions might prevent users from running modified versions of the software on their devices.
+
+The license's intention is to guarantee users the freedom to share and change all versions of a program, ensuring it remains free software for all its users.
