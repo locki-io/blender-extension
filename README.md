@@ -28,7 +28,7 @@ One of the prominent features is the integration with Blender's powerful Geometr
 
 ## Usage
 
-1. **Configuration**: After installing the addon, go to Blender preferences and locate the MultiversX addon settings. Here, enter your wallet address and the associated API key.
+1. **Configuration**: After installing the addon, go to Blender preferences and locate the MultiversX addon settings. Here, enter your wallet address and the associated API key.  
 
 ![Enter your API KEY](images/enterapikey.png)
 
