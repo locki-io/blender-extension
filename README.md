@@ -34,7 +34,7 @@ One of the prominent features is the integration with Blender's powerful Geometr
 
 Once you are connected, you can use the content of the panel in the 3D viewport of you blender.
 2. **Accessing the Panel**: In the main Blender UI, open the side panel (typically toggled with the `N` key). You should find the MultiversX panel available. From this panel, you can explore various creations and connect to the blockchain.
-![Step2_Image](images/openpanel.png)
+![Step2_Image](images/openpanel.png)  
 3. **Trying CAD Creations**: If you're keen on experimenting with CAD creation features, please send us a request on the [Encode Discord](https://discord.gg/encodeclub). We'd be thrilled to facilitate a minting process for your designs.
 
 ## 3D NFT (Non-fungible Token) Definitions
