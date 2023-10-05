@@ -64,9 +64,9 @@ Embark on a transformative design journey with MultiversX Blender Addon!
 # Inspirations from creators 
 
 Thanks for the inspiration from 
-[CGpython](https://github.com/VictorStepanov): for having a structured approach of the python capabilities of Blender and its combination of use with geometry nodes.
-[Erindale](https://github.com/Erindale) : The usage from svershok addon to blender geometry nodes 
-[Khamurai](https://www.patreon.com/khamurai) for his tentable inspiring video.
+- [CGpython](https://github.com/VictorStepanov): for having a structured approach of the python capabilities of Blender and its combination of use with geometry nodes.  
+- [Erindale](https://github.com/Erindale) : The usage from svershok addon to blender geometry nodes  
+- [Khamurai](https://www.patreon.com/khamurai) for his tentable inspiring video.  
 
 They brought Geometry nodes to our knowledge and passion! 
 
