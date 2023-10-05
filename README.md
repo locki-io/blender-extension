@@ -29,7 +29,9 @@ One of the prominent features is the integration with Blender's powerful Geometr
 ## Usage
 
 1. **Configuration**: After installing the addon, go to Blender preferences and locate the MultiversX addon settings. Here, enter your wallet address and the associated API key.
+
 ![Enter your API KEY](images/enterapikey.png)
+
 Once you are connected, you can use the content of the panel in the 3D viewport of you blender.
 2. **Accessing the Panel**: In the main Blender UI, open the side panel (typically toggled with the `N` key). You should find the MultiversX panel available. From this panel, you can explore various creations and connect to the blockchain.
 ![Step2_Image](images/openpanel.png)
