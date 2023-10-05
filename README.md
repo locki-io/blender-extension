@@ -15,7 +15,7 @@ One of the prominent features is the integration with Blender's powerful Geometr
 ## Requirements
 
 - **Blender**: Ensure you're running a compatible version of Blender. [Download the latest version here](https://www.blender.org/download/).
-- **MultiversX Devnet Wallet**: Before using this addon, you must possess a wallet on the MultiversX devnet.
+- **MultiversX Devnet Wallet**: Before using this addon, you must possess a wallet on the MultiversX devnet this can be create [here](https://devnet-wallet.multiversx.com/create).
 - **API Key from app.locki.io**: Connect your MultiversX devnet wallet to [app.locki.io](https://app.locki.io) and obtain a connection API key. This key allows the addon to communicate and manage 3D data from your wallet.
 
 ## Installation
@@ -65,8 +65,8 @@ Embark on a transformative design journey with MultiversX Blender Addon!
 
 Thanks for the inspiration from 
 - [CGpython](https://github.com/VictorStepanov): for having a structured approach of the python capabilities of Blender and its combination of use with geometry nodes.  
-- [Erindale](https://github.com/Erindale) : The usage from svershok addon to blender geometry nodes  
-- [Khamurai](https://www.patreon.com/khamurai) for his tentable inspiring video.  
+- [Erindale](https://github.com/Erindale) : From the usage from svershok addon to the eduction on blender geometry nodes  
+- [Khamurai](https://www.patreon.com/khamurai) for his tentacles inspiring video to use geometry nodes to its full potential.  
 
 They brought Geometry nodes to our knowledge and passion! 
 
