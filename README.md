@@ -52,9 +52,6 @@ In the realm of this addon, we introduce innovative NFT categories:
 - **Evolutive Coded DataNFT**: Another Itheum-backed NFT, this variant is dynamic in nature. It consists of a preview thumbnail, an intricate preview, concealed Python code (`.bpy`), and a `.json` file with adaptable links. These links can be periodically updated by the creator, ensuring compatibility with software evolution. Here too, concealed assets are a privilege of the NFT owner.
 
 - **Configurable DataNFT**: Rooted in Itheum's capabilities, this NFT is parametric. It showcases a preview thumbnail, a detailed preview, and a concealed parametric mesh (`.gltf`). This allows the owner to tweak certain parameters, customizing the mesh as per their desires.
-![Open up the panel](images/openpanel.png)
-
-Enjoy!
 
 ## Status & Contribution
 
