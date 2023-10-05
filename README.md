@@ -61,13 +61,9 @@ Feedback, bug reports, and contributions are highly appreciated. Feel free to op
 
 Happy Designing with MultiversX Blender Addon!
 
-## Inspiration / Credits
-
-Thanks to CGPython, Erindale and Khamurai for their inspiration towards blender and geometry nodes
-
 ---
-
 Embark on a transformative design journey with MultiversX Blender Addon!
+---
 
 # Inspirations from creators 
 
