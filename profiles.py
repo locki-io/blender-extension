@@ -3,6 +3,7 @@
 
 import os
 import bpy
+from datetime import datetime, timezone
 
 from . import communication
 
@@ -38,7 +39,7 @@ class LockiIdProfile(metaclass=_BIPMeta):
         cls.api_key = ''
         cls.token = ''
         cls.expires = ''
-        cls.nfts = []
+        cls.nfts = {}
         cls.none = "0"
 
     @classmethod
@@ -62,6 +63,10 @@ class LockiIdProfile(metaclass=_BIPMeta):
         """Updates the JSON file with the active profile information."""
 
         jsonfile = get_profiles_data()
+        # check is nfts is a list : 
+        # if not isinstance(cls.nfts, list):
+        #    raise TypeError("Expected nfts to be a list!")
+        
         jsonfile['profiles'][cls.address] = {
             'api_key': cls.api_key,
             'token': cls.token,
@@ -184,12 +189,23 @@ def save_profiles_data(all_profiles: dict):
     with open(profiles_file, 'w', encoding='utf8') as outfile:
         json.dump(all_profiles, outfile, sort_keys=True)
 
-def save_as_active_profile(auth_result: communication.AuthResult, api_key, nfts, nonce):
-    """Saves the given info as the active profile."""
+def milliseconds_to_iso8601(ms_timestamp):
+    # Convert milliseconds since epoch to seconds since epoch
+    timestamp_in_seconds = ms_timestamp / 1000
 
-    LockiIdProfile.address = auth_result.address
+    # Create a datetime object from the timestamp
+    dt = datetime.fromtimestamp(timestamp_in_seconds, timezone.utc)
+
+    # Format the datetime object as ISO 8601 with fractional seconds and 'Z' suffix
+    return dt.isoformat()
+
+def save_as_active_profile(auth_result: communication.AuthResult, address, api_key, nfts, nonce):
+    """Saves the given info as the active profile."""
+    
+    formated_expires = milliseconds_to_iso8601(auth_result.expires)
+    LockiIdProfile.address = address
     LockiIdProfile.token = auth_result.token
-    LockiIdProfile.expires = auth_result.expires
+    LockiIdProfile.expires = formated_expires.replace('+00:00', 'Z')
     LockiIdProfile.api_key = api_key
     LockiIdProfile.nfts = nfts
     LockiIdProfile.nonce = nonce

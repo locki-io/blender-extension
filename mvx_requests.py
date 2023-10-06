@@ -37,20 +37,20 @@ def get_nftlist_from_address(address):
     return resp
 
 def get_urllist_from_list(nftlist):
-    result = []
+    result = {}
     for item in nftlist:
+        # Standard NFT
         if 'assets' in item and item['assets']:
             identifier = item['identifier']
             assets = item['assets']
             svg_url = assets.get('svgUrl','')
             png_url = assets.get('pngUrl','')
 
-            result.append({
-                'identifier': identifier,
+            result[identifier] = {
                 'svgUrl': svg_url,
                 'pngUrl': png_url,
-            })
-
+            }
+        # DATA NFT
         if 'media' in item and item['media']:  # Check if 'media' key exists and is not empty
             identifier = item['identifier']
             media = item['media'][0]  # Assuming 'media' is a list and taking the first element
@@ -64,13 +64,12 @@ def get_urllist_from_list(nftlist):
             # Formatting uris
             uri_dict = {f'uri{i + 1}': uri for i, uri in enumerate(uris)}
         
-            result.append({
-                'identifier': identifier,
+            result[identifier]= {
                 'originalUrl': original_url,
                 'thumbnailUrl': thumbnail_url,
                 'url': url,
                 **uri_dict  # This syntax merges the uri_dict into the result dictionary
-            })
+            }
     return result
 
 def check_address_nonce(address):

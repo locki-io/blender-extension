@@ -29,9 +29,9 @@ if 'communication' in locals():
     get_scripts = importlib.reload(get_scripts)
     clean_scene = importlib.reload(clean_scene)
     mvx_requests = importlib.reload(mvx_requests)
-    datanft_menu = importlib.reload(datanft_menu)
+    # datanft_menu = importlib.reload(datanft_menu)
 else:
-    from . import communication, profiles, get_scripts, clean_scene, mvx_requests, datanft_menu
+    from . import communication, profiles, get_scripts, clean_scene, mvx_requests
 
 LockiIdProfile = profiles.LockiIdProfile
 LockiIdCommError = communication.LockiIdCommError
@@ -67,7 +67,7 @@ def get_active_profile() -> LockiIdProfile:
 def is_logged_in() -> bool:
     """Returns whether the user is logged in on Locki ID or not."""
 
-    return bool(LockiIdProfile.address)
+    return bool(LockiIdProfile.address != '')
 
 
 def token_expires() -> typing.Optional[datetime.datetime]:
@@ -172,8 +172,8 @@ class LockiIdPreferences(AddonPreferences):
                 else:
                     exp_str = tip_('within seconds')
 
-                endpoint = communication.locki_id_endpoint()
-                if endpoint == communication.LOCKI_ID_ENDPOINT:
+                endpoint = communication.auth_endpoint()
+                if endpoint == communication.AUTH_ENDPOINT:
                     msg = tip_(
                         'You are logged with key %s') % active_profile.api_key
                 else:
@@ -195,11 +195,10 @@ class LockiIdPreferences(AddonPreferences):
             
         else:
             layout.prop(self, 'address')
-
             layout.prop(self, 'api_key')
+
             # layout.prop(self, 'api_secret')
             layout.operator('locki_id.login')
-            layout.operator('sl.login')
 
 class LockiIdMixin:
     @staticmethod
@@ -213,28 +212,6 @@ class LockiIdMixin:
         addon_prefs.reset_messages()
         return addon_prefs
 
-class SlLogin(LockiIdMixin, Operator):
-    bl_idname = 'sl.login'
-    bl_label = 'Check serverless'
-
-    def execute(self, context):
-        addon_prefs = self.addon_prefs(context)
-        # TEST 
-        test=LockiIdProfile['token']
-        auth_result = communication.server_less_getapikey(
-            token=LockiIdProfile['token']
-        )
-        if auth_result.success:
-            addon_prefs.ok_message = tip_('token ok apikey' + auth_result.api_key )
-        else:
-            addon_prefs.error_message = auth_result.error_message
-            if LockiIdProfile.address:
-                profiles.logout(LockiIdProfile.address)
-
-        LockiIdProfile.read_json()
-        
-        return {'FINISHED'}    
-
 class LockiIdLogin(LockiIdMixin, Operator):
     bl_idname = 'locki_id.login'
     bl_label = 'Login'
@@ -246,23 +223,26 @@ class LockiIdLogin(LockiIdMixin, Operator):
         addon_prefs = self.addon_prefs(context)
 
         auth_result = communication.locki_id_server_authenticate(
-            # address=addon_prefs.address
+            #address=addon_prefs.address,
             api_key=addon_prefs.api_key,
         )
 
         if auth_result.success:
             # Prevent saving the secret in user preferences. Overwrite the secret with a
             # random string, as just setting to '' might only replace the first byte with 0.
-            pwlen = len(addon_prefs.api_secret)
-            rnd = ''.join(random.choice(string.ascii_uppercase + string.digits)
-                          for _ in range(pwlen + 16))
-            addon_prefs.api_secret = rnd
-            addon_prefs.api_secret = ''
+            # !!!! NO API secret !!!
+            # pwlen = len(addon_prefs.api_secret)
+            # rnd = ''.join(random.choice(string.ascii_uppercase + string.digits)
+            #               for _ in range(pwlen + 16))
+            # addon_prefs.api_secret = rnd
+            # addon_prefs.api_secret = ''
             # JNS add the bearer token, signature, ...
             profiles.save_as_active_profile(
                 auth_result,
-                addon_prefs.address, 
-                {}
+                addon_prefs.address,
+                addon_prefs.api_key,
+                {},
+                "0",
             )
             addon_prefs.ok_message = tip_('Logged in')
         else:
@@ -367,7 +347,6 @@ class UTILS_OT_get_nfts(LockiIdMixin, bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        import json
         addon_prefs = self.addon_prefs(context)
 
         nft_list = mvx_requests.get_nftlist_from_address(LockiIdProfile.address)
@@ -379,31 +358,10 @@ class UTILS_OT_get_nfts(LockiIdMixin, bpy.types.Operator):
 
         addon_prefs.ok_message = tip_('You have loaded the NFTs')
         LockiIdProfile.read_json()
-        
+
         return {"FINISHED"}
 
-class enum_mynfts_properties(bpy.types.PropertyGroup):
-    enum_nft : bpy.props.EnumProperty(
-        items=[
-            ('OPTION1', "Option 1", "Description 1"),
-            ('OPTION2', "Option 2", "Description 2"),
-            ('OPTION3', "Option 3", "Description 3")
-        ],
-        name= "Enum Nfts",
-        default = 'OPTION1',
-    )
 
-class UTILS_OT_show_nft_combobox(bpy.types.Operator):
-
-    """Create a combobox for NFT """
-
-    bl_idname = "utils.show_nft_combobox"
-    bl_label = "NFTs:"
-    bl_options = {"REGISTER", "UNDO"}
-
-    def execute(self, context):
-        
-        return {"FINISHED"}
 
 # class naming convention ‘CATEGORY_PT_name’
 class VIEW3D_PT_locki_panel(bpy.types.Panel):
@@ -420,13 +378,16 @@ class VIEW3D_PT_locki_panel(bpy.types.Panel):
 
     def draw(self, context):
         """define the layout of the panel"""
-
+        # print('is logged :' + str(is_logged_in()))
+        if is_logged_in():
+            row = self.layout.row()
+            row.operator("utils.get_nonce", text="Check MvX nonce")
+            row = self.layout.row()
+            row.operator("utils.get_nfts", text="Get MvX nfts")
+            row = self.layout.row()
+            row.operator("utils.show_nft_combobox", text="Choose NFT")
+            
         row = self.layout.row()
-        row.operator("utils.get_nonce", text="Check MvX nonce")
-        row = self.layout.row()
-        row.operator("utils.get_nfts", text="Get MvX nfts")
-        row = self.layout.row()
-
         row.operator("mesh.clean_scene", text="Clear Scene")
         self.layout.separator()
         row = self.layout.row()
@@ -445,54 +406,65 @@ class VIEW3D_PT_locki_panel(bpy.types.Panel):
 
 
 def register():
+    # Register profile and data-related functionalities
     profiles.register()
-    LockiIdProfile.read_json()
-
     bpy.utils.register_class(LockiIdLogin)
     bpy.utils.register_class(LockiIdLogout)
     bpy.utils.register_class(LockiIdPreferences)
     bpy.utils.register_class(LockiIdValidate)
+    LockiIdProfile.read_json()
     
     # register panel 
     bpy.utils.register_class(VIEW3D_PT_locki_panel)
+
+    # Register mesh and scene utilities
     bpy.utils.register_class(get_scripts.MESH_OT_add_subdiv_monkey)
     bpy.utils.register_class(get_scripts.MESH_OT_add_rotating_cube_obj)
     bpy.utils.register_class(clean_scene.MESH_OT_clean_scene)
-    # register mvx + SL test
+
+     # Register utility operators
     bpy.utils.register_class(UTILS_OT_get_nonce)
     bpy.utils.register_class(UTILS_OT_get_nfts)
-    bpy.utils.register_class(SlLogin)
-    # register props NFTs 
-    bpy.utils.register_class(enum_mynfts_properties)    
-    bpy.utils.register_class(UTILS_OT_show_nft_combobox)
 
+    # Register properties and UI related to NFTs
+    #bpy.utils.register_class(enum_mynfts_properties)
+    #bpy.types.WindowManager.my_nfts = bpy.props.PointerProperty(type=enum_mynfts_properties)
+    #bpy.context.window_manager.my_nfts.add()
+    #bpy.utils.register_class(UTILS_OT_show_nft_combobox)
+    
+    # Reset messages or any final initialization
     preferences = LockiIdMixin.addon_prefs(bpy.context)
     preferences.reset_messages()
 
 
 def unregister():
-    bpy.utils.unregister_class(LockiIdLogin)
-    bpy.utils.unregister_class(LockiIdLogout)
-    bpy.utils.unregister_class(LockiIdPreferences)
-    bpy.utils.unregister_class(LockiIdValidate)
+    # Reset messages or any final de-initialization
+    preferences = LockiIdMixin.addon_prefs(bpy.context)
+    preferences.reset_messages()  # Assuming you might want to clean up some stuff during unregister as well.
+    
+    # Unregister properties and UI related to NFTs
+    #bpy.utils.unregister_class(UTILS_OT_show_nft_combobox)
+    #del bpy.types.WindowManager.my_nfts
+    #bpy.utils.unregister_class(enum_mynfts_properties)
 
-    # unregister scripts
-    bpy.utils.unregister_class(get_scripts.MESH_OT_add_subdiv_monkey)
-    bpy.utils.unregister_class(get_scripts.MESH_OT_add_rotating_cube_obj)
-
-    bpy.utils.unregister_class(clean_scene.MESH_OT_clean_scene)
-
-    # unregister mvx test
-    bpy.utils.unregister_class(UTILS_OT_get_nonce)
+    # Unregister utility operators
     bpy.utils.unregister_class(UTILS_OT_get_nfts)
-    bpy.utils.unregister_class(SlLogin)
+    bpy.utils.unregister_class(UTILS_OT_get_nonce)
 
-    # unregister nft list elements
-    bpy.utils.unregister_class(enum_mynfts_properties)
-    bpy.utils.unregister_class(UTILS_OT_show_nft_combobox)
+    # Unregister mesh and scene utilities
+    bpy.utils.unregister_class(clean_scene.MESH_OT_clean_scene)
+    bpy.utils.unregister_class(get_scripts.MESH_OT_add_rotating_cube_obj)
+    bpy.utils.unregister_class(get_scripts.MESH_OT_add_subdiv_monkey)
 
-    # unregister panel 
+    # Unregister panels
     bpy.utils.unregister_class(VIEW3D_PT_locki_panel)
+
+    # Unregister profile and data-related functionalities
+    bpy.utils.unregister_class(LockiIdValidate)
+    bpy.utils.unregister_class(LockiIdPreferences)
+    bpy.utils.unregister_class(LockiIdLogout)
+    bpy.utils.unregister_class(LockiIdLogin)
+    #profiles.unregister()
 
 if __name__ == '__main__':
     register()
