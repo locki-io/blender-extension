@@ -2,7 +2,7 @@
 
 import logging  # from blender cloud addon
 from bpy.app.translations import pgettext_tip as tip_
-from bpy.props import PointerProperty, StringProperty
+from bpy.props import PointerProperty, StringProperty, IntProperty, EnumProperty
 from bpy.types import AddonPreferences, Context, Operator, PropertyGroup
 import bpy
 import typing
@@ -10,13 +10,14 @@ import datetime
 
 bl_info = {
     'name': 'Locki-ID-Addon',
-    'author': 'Jean-Noël Schilling',
-    'version': (0, 1, 3),
+    'author': 'Satish NVRN, Jean-Noël Schilling',
+    'version': (0, 1, 5),
     'blender': (3, 6, 2),
-    'location': 'Add-on preferences + panel',
+    'location': 'Add-on preferences + navigate to 3D view panel',
+    "doc_url": "https://github.com/locki-io/locki_id_addon/",
     'description':
-        'Stores your Locki ID credentials(API key-secret) for usage of your stored NFT',
-    'category': 'System'
+        'Stores your Locki ID credentials(API key) for usage of your stored NFTs',
+    'category': 'Development'
 }
 
 if 'communication' in locals():
@@ -124,12 +125,17 @@ class LockiIdPreferences(AddonPreferences):
         options={'HIDDEN', 'SKIP_SAVE'},
         subtype='PASSWORD'
     )
-    # api_secret: StringProperty(
-    #     name='API SECRET',
-    #     default='',
-    #     options={'HIDDEN', 'SKIP_SAVE'},
-    #     subtype='PASSWORD'  # JNS check whether there is a special time for that
-    # )
+    nonce: IntProperty(
+        name='nonce', 
+        default= 0
+    )
+    # store the NFTs in addon_prefs 
+    # nft_identifiers: EnumProperty(
+    #    items=[("default", "default", "Choose your nft")],
+    #    name="My Nfts",
+    #    default="default",        
+    #    description='All loaded Nfts by identifier'
+    #)
 
     def reset_messages(self):
         self.ok_message = ''
@@ -314,17 +320,6 @@ class UTILS_OT_get_nonce(LockiIdMixin, bpy.types.Operator):
     bl_label = "get address nonce"
     bl_options = {"REGISTER", "UNDO"}
 
-    # Check if an address in in the LockiID otherwise  
-    # if LockiIdProfile.read_json() is None:
-    #     #JNS to change on startup
-    #     LockiIdProfile.address: bpy.props.StringProperty(
-    #         name="address",
-    #         default= 'erd19flra2au9gfhweggsax9qkg63r8vqq58drfdq2zcr28fk7nywduq4fcj7h',
-    #         description="Default Wallet address",
-    #     )
-    #     LockiIdProfile.save_json(make_active_profile=True)
-        
-
     def execute(self, context):
         addon_prefs = self.addon_prefs(context)
         result = mvx_requests.check_address_nonce(LockiIdProfile.address)
@@ -332,11 +327,17 @@ class UTILS_OT_get_nonce(LockiIdMixin, bpy.types.Operator):
         if result:
             
             LockiIdProfile.nonce = result["nonce"]
+            addon_prefs.nonce = result["nonce"]
             LockiIdProfile.save_json()
-        mvx_requests.show_message(result['address'], f"Nonce: {result['nonce']}")
+        mvx_requests.show_message(str(LockiIdProfile.address), f"Nonce: {str(result['nonce'])}")
 
         LockiIdProfile.read_json()
         return {"FINISHED"}
+
+def update_enum_nft_identifiers(self, context):
+    addon_prefs = self.addon_prefs(context)
+    updated_identifiers = mvx_requests.transform_nft_urls_in_menu(nft_url=LockiIdProfile.nfts)
+    addon_prefs.nft_identifier.items = updated_identifiers
 
 class UTILS_OT_get_nfts(LockiIdMixin, bpy.types.Operator):
     
@@ -354,27 +355,45 @@ class UTILS_OT_get_nfts(LockiIdMixin, bpy.types.Operator):
 
         # store them into the profile 
         LockiIdProfile.nfts = nft_urls
+        test = mvx_requests.transform_nft_urls_in_menu(nft_urls)
+        # debugging the result : 
+        # print(test)
+        count = len(test)
+        mvx_requests.show_message(LockiIdProfile.address, f"{count} NFTs loaded")
+        #addon_prefs.nft_identifiers.items = mvx_requests.transform_nft_urls_in_menu(nft_urls)
+        #expect a string enum not a list
         LockiIdProfile.save_json()
 
         addon_prefs.ok_message = tip_('You have loaded the NFTs')
         LockiIdProfile.read_json()
 
         return {"FINISHED"}
-
-
+    
+class NftsModels(bpy.types.PropertyGroup):
+    nft_identifiers: bpy.props.EnumProperty(
+        items=[
+            ('default', "default", "Choose your nft"),
+            ('OPTION1', "option 1", "Choose your nft #1"),
+            ],
+        name="My Nfts",
+        default="default",        
+        description='All loaded Nfts by identifier',
+        #update=update_enum_nft_identifiers
+    )
+bpy.utils.register_class(NftsModels)
 
 # class naming convention ‘CATEGORY_PT_name’
 class VIEW3D_PT_locki_panel(bpy.types.Panel):
-
     # where to add the panel in the UI
     # 3D Viewport area (find list of values here https://docs.blender.org/api/current/bpy_types_enum_items/space_type_items.html#rna-enum-space-type-items)
     bl_space_type = "VIEW_3D"
     # Sidebar region (find list of values here https://docs.blender.org/api/current/bpy_types_enum_items/region_type_items.html#rna-enum-region-type-items)
     bl_region_type = "UI"
-
     # add labels
-    bl_category = "Locki category"  # found in the Sidebar
+    bl_category = "Locki.io"  # found in the Sidebar
     bl_label = "Locki Panel"  # found at the top of the Panel
+
+    # nfts: bpy.props.EnumProperty(type=NftsModels)
 
     def draw(self, context):
         """define the layout of the panel"""
@@ -384,8 +403,10 @@ class VIEW3D_PT_locki_panel(bpy.types.Panel):
             row.operator("utils.get_nonce", text="Check MvX nonce")
             row = self.layout.row()
             row.operator("utils.get_nfts", text="Get MvX nfts")
-            row = self.layout.row()
-            row.operator("utils.show_nft_combobox", text="Choose NFT")
+            #TO DO row = self.layout.row()
+            # box = ...
+            # if self.nfts:
+            #     self.layout.box(self.nfts, "nft_identifiers", "My Nfts")
             
         row = self.layout.row()
         row.operator("mesh.clean_scene", text="Clear Scene")
@@ -427,10 +448,8 @@ def register():
     bpy.utils.register_class(UTILS_OT_get_nfts)
 
     # Register properties and UI related to NFTs
-    #bpy.utils.register_class(enum_mynfts_properties)
-    #bpy.types.WindowManager.my_nfts = bpy.props.PointerProperty(type=enum_mynfts_properties)
-    #bpy.context.window_manager.my_nfts.add()
-    #bpy.utils.register_class(UTILS_OT_show_nft_combobox)
+    # bpy.utils.register_class(NftsModels)
+    
     
     # Reset messages or any final initialization
     preferences = LockiIdMixin.addon_prefs(bpy.context)
@@ -443,7 +462,9 @@ def unregister():
     preferences.reset_messages()  # Assuming you might want to clean up some stuff during unregister as well.
     
     # Unregister properties and UI related to NFTs
+    #bpy.utils.unregister_class(NftsModels)
     #bpy.utils.unregister_class(UTILS_OT_show_nft_combobox)
+    #bpy.utils.unregister_class(update_enum_nft_identifiers)
     #del bpy.types.WindowManager.my_nfts
     #bpy.utils.unregister_class(enum_mynfts_properties)
 

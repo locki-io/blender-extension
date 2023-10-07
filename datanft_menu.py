@@ -53,52 +53,40 @@ def unregister():
 #                new_item.uri2 = uris[1] if len(uris) > 1 else ''
 
 def default_items (self, context):
-    items=[
+    items=(
             ('default', "", "Choose your nft"),
             ('OPTION1', "Option 1", "Description 1"),
             ('OPTION2', "Option 2", "Description 2"),
-        ]
+    )
     return items
 
 #def update_enum_nft(self, context):
 #    self.enum_nft = update_enum_nft(self, context)
 
-def update_enum_nft(self, context):
-    items = [('default', "", "Choose your nft")]
+# def update_enum_nft(self, context):
+#     items = (('default', "", "Choose your nft"))
     
-    nfts = LockiIdProfile.nfts
-    if not nfts:  # Check if nfts is None or an empty dictionary
-        return items 
+#     #nfts = LockiIdProfile.nfts
+#     if not nfts:  # Check if nfts is None or an empty dictionary
+#         return items 
     
-    for identifier, data in nfts.items():
-        for url in data.items():
-            ext = url.split('.')[-1]  # Get the file extension
-            option_id = f"{identifier}_{ext.upper()}"
-            option_name = f"{identifier} ({ext})"
-            items.append((option_id, option_name, url))
+#     for identifier, data in nfts.items():
+#         for url in data.items():
+#             ext = url.split('.')[-1]  # Get the file extension
+#             option_id = f"{identifier}_{ext.upper()}"
+#             option_name = f"{identifier} ({ext})"
+#             items.append((option_id, option_name, url))
 
-    return items
+#     return items
 
-class enum_mynfts_properties(bpy.types.PropertyGroup):
-    enum_nft : bpy.props.EnumProperty(
-        items=default_items,
-        #update=update_enum_nft,
-        name= "Enum Nfts",
-        default = "default",
-    )
+# class enum_mynfts_properties(bpy.types.PropertyGroup):
+#     enum_nft : bpy.props.EnumProperty(
+#         items=default_items,
+#         #update=update_enum_nft,
+#         name= "Enum Nfts",
+#         default = "default",
+#     )
 
-class UTILS_OT_show_nft_combobox(bpy.types.Operator):
 
-    """Create a combobox of NFT urls """
-
-    bl_idname = "utils.show_nft_combobox"
-    bl_label = "NFTs:"
-    bl_options = {"REGISTER", "UNDO"}
-
-    def execute(self, context):
-
-        #chosen_nft = context.window_manager.my_nfts.enum_nft
-        #self.report({'INFO'}, f"Chosen NFT: {chosen_nft}")
-        return {"FINISHED"}
     
     
