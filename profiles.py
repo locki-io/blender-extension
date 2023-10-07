@@ -3,6 +3,7 @@
 
 import os
 import bpy
+from datetime import datetime, timezone
 
 from . import communication
 
@@ -16,7 +17,7 @@ class _BIPMeta(type):
 
     def __str__(self):
         # noinspection PyUnresolvedReferences
-        return '%s(api_key=%r)' % (self.__qualname__, self.api_key)
+        return '%s(address=%r)' % (self.__qualname__, self.address)
 
 
 class LockiIdProfile(metaclass=_BIPMeta):
@@ -25,20 +26,21 @@ class LockiIdProfile(metaclass=_BIPMeta):
     This is always stored at class level, as there is only one current
     profile anyway.
     """
-
+    address = ''
     api_key = ''
-    """username = ''"""
     token = ''
     expires = ''
-    """subclients = {}"""
+    nfts = {}
+    nonce = "0"
 
     @classmethod
     def reset(cls):
+        cls.address = ''
         cls.api_key = ''
-        """cls.username = ''"""
         cls.token = ''
         cls.expires = ''
-        """cls.subclients = {}"""
+        cls.nfts = {}
+        cls.none = "0"
 
     @classmethod
     def read_json(cls):
@@ -61,14 +63,20 @@ class LockiIdProfile(metaclass=_BIPMeta):
         """Updates the JSON file with the active profile information."""
 
         jsonfile = get_profiles_data()
-        jsonfile['profiles'][cls.api_key] = {
+        # check is nfts is a list : 
+        # if not isinstance(cls.nfts, list):
+        #    raise TypeError("Expected nfts to be a list!")
+        
+        jsonfile['profiles'][cls.address] = {
+            'api_key': cls.api_key,
             'token': cls.token,
             'expires': cls.expires,
+            'nfts': cls.nfts,
+            'nonce': cls.nonce,
         }
-# 'username': cls.username,
-# 'subclients': cls.subclients,
+
         if make_active_profile:
-            jsonfile['active_profile'] = cls.api_key
+            jsonfile['active_profile'] = cls.address
 
         save_profiles_data(jsonfile)
 
@@ -87,7 +95,7 @@ def _create_default_file():
 
     profiles_default_data = {
         'active_profile': None,
-        'profiles': {}
+        "profiles": {}
     }
 
     os.makedirs(profiles_path, exist_ok=True)
@@ -131,7 +139,7 @@ def get_profiles_data():
             return _create_default_file()
 
 
-def get_active_api_key():
+def get_active_address():
     """Get the id of the currently active profile. If there is no
     active profile on the file, this function will return None.
     """
@@ -146,28 +154,31 @@ def get_active_profile():
     @returns: dict like {'api_key': ...1234, 'username': 'email@blender.org'}
     """
     file_content = get_profiles_data()
-    api_key = file_content['active_profile']
-    if not api_key or api_key not in file_content['profiles']:
+    address = file_content['active_profile']
+    if not address or address not in file_content['profiles']:
         return None
 
-    profile = file_content['profiles'][api_key]
-    profile['api_key'] = api_key
+    profile = file_content['profiles'][address]
+    profile['address'] = address
     return profile
 
 
-def get_profile(api_key):
-    """Loads the profile data for a given api_key if existing
+def get_profile(address):
+    """Loads the profile data for a given address if existing
     else it returns None.
     """
 
     file_content = get_profiles_data()
-    if not api_key or api_key not in file_content['profiles']:
+    if not address or address not in file_content['profiles']:
         return None
 
-    profile = file_content['profiles'][api_key]
+    profile = file_content['profiles'][address]
     return dict(
+        address=profile['address'],
         api_key=profile['api_key'],
-        token=profile['token']
+        token=profile['token'],
+        nfts=profile['nfts'],
+        nonce=profile['nonce'],
     )
 
 
@@ -178,21 +189,31 @@ def save_profiles_data(all_profiles: dict):
     with open(profiles_file, 'w', encoding='utf8') as outfile:
         json.dump(all_profiles, outfile, sort_keys=True)
 
+def milliseconds_to_iso8601(ms_timestamp):
+    # Convert milliseconds since epoch to seconds since epoch
+    timestamp_in_seconds = ms_timestamp / 1000
 
-def save_as_active_profile(auth_result: communication.AuthResult, api_key, subclients):
+    # Create a datetime object from the timestamp
+    dt = datetime.fromtimestamp(timestamp_in_seconds, timezone.utc)
+
+    # Format the datetime object as ISO 8601 with fractional seconds and 'Z' suffix
+    return dt.isoformat()
+
+def save_as_active_profile(auth_result: communication.AuthResult, address, api_key, nfts, nonce):
     """Saves the given info as the active profile."""
-
-    LockiIdProfile.api_key = auth_result.api_key
+    
+    formated_expires = milliseconds_to_iso8601(auth_result.expires)
+    LockiIdProfile.address = address
     LockiIdProfile.token = auth_result.token
-    LockiIdProfile.expires = auth_result.expires
-
-    """LockiIdProfile.username = username
-    LockiIdProfile.subclients = subclients"""
-
+    LockiIdProfile.expires = formated_expires.replace('+00:00', 'Z')
+    LockiIdProfile.api_key = api_key
+    LockiIdProfile.nfts = nfts
+    LockiIdProfile.nonce = nonce
+  
     LockiIdProfile.save_json(make_active_profile=True)
 
 
-def logout(api_key):
+def logout(address):
     """Invalidates the token and state of active for this user.
     This is different from switching the active profile, where the active
     profile is changed but there isn't an explicit logout.
@@ -202,12 +223,12 @@ def logout(api_key):
     file_content = get_profiles_data()
 
     # Remove user from 'active profile'
-    if file_content['active_profile'] == api_key:
+    if file_content['active_profile'] == address:
         file_content['active_profile'] = ""
 
     # Remove both user and token from profiles list
-    if api_key in file_content['profiles']:
-        del file_content['profiles'][api_key]
+    if address in file_content['profiles']:
+        del file_content['profiles'][address]
 
     with open(profiles_file, 'w', encoding='utf8') as outfile:
         json.dump(file_content, outfile)

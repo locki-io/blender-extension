@@ -4,33 +4,36 @@ import functools
 import logging
 import typing
 
+from . import comm_test
+
 log = logging.getLogger(__name__)
 
-# Can be overridden by setting the environment variable LOCKI_ID_ENDPOINT. Overrid with localhost:8000 for development
-LOCKI_ID_ENDPOINT = 'http://localhost:'  # JNS add port here
+# Can be overridden by setting the environment variable LOCKI_ID_ENDPOINT. Overrid with localhost:3000 for development
+LOCKI_ID_ENDPOINT = 'http://localhost:3000/'  # JNS add port here
+MVX_ENDPOINT = 'https://devnet-api.multiversx.com/'
+AUTH_ENDPOINT = 'https://2rkm8gkhk7.execute-api.eu-central-1.amazonaws.com/'
+
 # production LOCKI_ID_ENDPOINT = 'https://api.locki.io/'
 
 # Will become a requests.Session at the first request to Locki ID.
 requests_session = None
 
 # Request timeout, in seconds.
-REQUESTS_TIMEOUT = 5.0
-
+REQUESTS_TIMEOUT = 10.0
 
 class LockiIdCommError(RuntimeError):
     """Raised when there was an error communicating with Locki ID"""
 
-
 class AuthResult:
-    def __init__(self, *, success: bool,
+    def __init__(self, *, success: bool, address: str = None,
                  api_key: str = None, token: str = None, expires: str = None,
                  error_message: typing.Any = None):  # when success=False
         self.success = success
+        self.address = address
         self.api_key = api_key
         self.token = token
         self.error_message = str(error_message)
         self.expires = expires
-
 
 @functools.lru_cache(maxsize=None)
 def host_label():
@@ -39,16 +42,18 @@ def host_label():
     # info on where Blender is running
     return 'Blender running on %r' % socket.gethostname()
 
-
 def locki_id_session():
     """Returns the Requests session, creating it if necessary."""
     global requests_session
     import requests.adapters
-
+    import json 
     if requests_session is not None:
         return requests_session
 
     requests_session = requests.session()
+
+    #DEBUGGING
+    # no Host in header ???? print(requests_session.headers['Host'])
 
     # Retry with backoff factor, so that a restart of Blender ID or hickup
     # in the connection doesn't immediately fail the request.
@@ -69,12 +74,83 @@ def locki_id_session():
         blender_version = '.'.join(str(component)
                                    for component in bpy.app.version)
 
-    # from blender_id import bl_info
-    # addon_version = '.'.join(str(component)
-    #                          for component in bl_info['version'])
-    requests_session.headers['User-Agent'] = f'Blender/3.6.2 Locki-ID-Addon/0.1.0'
-
+    from blender_id import bl_info
+    addon_version = '.'.join(str(component)
+                              for component in bl_info['version'])
+    requests_session.headers['User-Agent'] = f'Blender/{blender_version} Locki-ID-Addon/{ addon_version }'
+    
     return requests_session
+
+@functools.lru_cache(maxsize=None)
+def auth_endpoint(endpoint_path=None):
+    """Gets the endpoint for the authentication API. If the MVX_ENDPOINT env variable
+    is defined, it's possible to override the (default) production address.
+    """
+    import os
+    import urllib.parse
+
+    base_url = os.environ.get('AUTH_ENDPOINT')
+    if base_url:
+        log.warning('Using overridden SL url %s', base_url)
+    else:
+        base_url = AUTH_ENDPOINT
+        log.info('Using standard SL url %s', base_url)
+
+    # urljoin() is None-safe for the 2nd parameter.
+    return urllib.parse.urljoin(base_url, endpoint_path)
+
+@functools.lru_cache(maxsize=None)
+def mvx_endpoint(endpoint_path=None):
+    """Gets the endpoint for the authentication API. If the MVX_ENDPOINT env variable
+    is defined, it's possible to override the (default) production address.
+    """
+    import os
+    import urllib.parse
+
+    base_url = os.environ.get('MVX_ENDPOINT')
+    if base_url:
+        log.warning('Using overridden mvx url %s', base_url)
+    else:
+        base_url = MVX_ENDPOINT
+        log.info('Using standard mvx url %s', base_url)
+
+    # urljoin() is None-safe for the 2nd parameter.
+    return urllib.parse.urljoin(base_url, endpoint_path)
+
+def mvx_authenticate(address) -> AuthResult:
+    import requests.exceptions
+
+    # Payload is optional (GET) 
+    payload = dict(
+        address=address,
+        host_label=host_label()
+    )
+
+    url = mvx_endpoint(u'/address/' + address + u'/nonce')
+    session = locki_id_session()
+    try:
+        r = session.get(url, data=payload, verify=True,
+                         timeout=REQUESTS_TIMEOUT)
+    except (requests.exceptions.SSLError,
+            requests.exceptions.HTTPError,
+            requests.exceptions.ConnectionError) as e:
+        msg = 'Exception GETing to {}: {}'.format(url, e)
+        print(msg)
+        return AuthResult(success=False, error_message=msg)
+
+    if r.status_code == 200:
+        resp = r.json()
+        status = resp['code']
+        if status == 'successful':
+            # defines the structure of the payload server side response
+            return AuthResult(success=True
+                              )
+        if status == 'fail':
+            return AuthResult(success=False, error_message='address is incorrect')
+
+    return AuthResult(success=False,
+                      error_message='There was a problem communicating with'
+                                    ' the server. Error code is: %s' % r.status_code)
 
 
 @functools.lru_cache(maxsize=None)
@@ -95,53 +171,52 @@ def locki_id_endpoint(endpoint_path=None):
     # urljoin() is None-safe for the 2nd parameter.
     return urllib.parse.urljoin(base_url, endpoint_path)
 
-
-def locki_id_server_authenticate(key, secret) -> AuthResult:
+def locki_id_server_authenticate( api_key ) -> AuthResult:
     """Authenticate the user with the server with a single transaction
-    containing key and secret (must happen via HTTPS).
+    containing api_key (must happen via HTTPS).
 
     If the transaction is successful, status will be 'successful' and we
-    return the user's unique locki id uuid and a token (that will be used to
-    represent that key and secret combination).
+    return the user's token (that will be used to authenticate).
     If there was a problem, status will be 'fail' and we return an error
-    message. Problems may be with the connection or wrong key/secret.
+    message. Problems may be with the connection or wrong api_key.
     """
 
     import requests.exceptions
 
     payload = dict(
-        key=key,
-        secret=secret,
+        apiKey=api_key,
         host_label=host_label()
     )
-    # the locki api server need an identify param
-
-    # JNS create the route the API /identity
-    url = locki_id_endpoint('u/identify')
+    # the locki api server need an identify endpoint
+    # create the route the API /identity
+    url = auth_endpoint(u'/Prod/identity')
     session = locki_id_session()
+    user_agent = session.headers.get('User-Agent')
+    host = session.headers.get('Host')
+    print ('User-agent :' + user_agent)
+    print ('Host :' + str(host))
     try:
-        r = session.post(url, data=payload, verify=True,
+        r = session.get(url, params=payload, verify=True,
                          timeout=REQUESTS_TIMEOUT)
     except (requests.exceptions.SSLError,
             requests.exceptions.HTTPError,
             requests.exceptions.ConnectionError) as e:
-        msg = 'Exception POSTing to {}: {}'.format(url, e)
+        msg = 'Exception GETing to {}: {}'.format(url, e)
         print(msg)
         return AuthResult(success=False, error_message=msg)
 
     if r.status_code == 200:
         resp = r.json()
-        status = resp['status']
-        if status == 'success':
+        # status = resp['status_code']
+        nativeAuthToken = resp['nativeAuthToken']
+        if nativeAuthToken is not None: # status == 'success':
             # defines the structure of the payload server side response
             return AuthResult(success=True,
-                              api_key=str(resp['data']['api_key']),
-                              # JNS to update as bearer token nativeAuth
-                              token=resp['data']['oauth_token']['access_token'],
-                              expires=resp['data']['oauth_token']['expires'],
+                              token=resp['nativeAuthToken'],
+                              expires=resp['expiry'], 
                               )
-        if status == 'fail':
-            return AuthResult(success=False, error_message='Username and/or password is incorrect')
+        else: #if status == 'fail':
+            return AuthResult(success=False, error_message='api-key is incorrect')
 
     return AuthResult(success=False,
                       error_message='There was a problem communicating with'
@@ -149,7 +224,8 @@ def locki_id_server_authenticate(key, secret) -> AuthResult:
 
 
 def locki_id_server_validate(token) -> typing.Tuple[typing.Optional[str], typing.Optional[str]]:
-    """Validate the auth token with the server.
+    """Validate the nativeAuth token with the server.
+        JNS question is whether we validate with the chain ? or with the locki server
 
     @param token: the authentication token
     @type token: str
@@ -160,7 +236,7 @@ def locki_id_server_validate(token) -> typing.Tuple[typing.Optional[str], typing
 
     import requests.exceptions
 
-    url = locki_id_endpoint('u/validate_token')  # JNS route to make up
+    url = mvx_endpoint(u'/validate_token')  # JNS change route to transaction to pingpong
     session = locki_id_session()
     try:
         r = session.post(url, data={'token': token},
@@ -179,7 +255,7 @@ def locki_id_server_validate(token) -> typing.Tuple[typing.Optional[str], typing
     return response['token_expires'], None
 
 
-def locki_id_server_logout(api_key, token):
+def locki_id_server_logout(address, token):
     """Logs out of the Locki ID service by removing the token server-side.
 
     @param api_key: the apikey of the user.
@@ -193,12 +269,12 @@ def locki_id_server_logout(api_key, token):
     import requests.exceptions
 
     payload = dict(
-        api_key=api_key,
+        address=address,
         token=token
     )
     session = locki_id_session()
     try:
-        r = session.post(locki_id_endpoint('u/delete_token'),
+        r = session.post(locki_id_endpoint(u'/delete_token'),
                          data=payload, verify=True, timeout=REQUESTS_TIMEOUT)
     except (requests.exceptions.SSLError,
             requests.exceptions.HTTPError,
@@ -222,19 +298,18 @@ def locki_id_server_logout(api_key, token):
         error_message=None
     )
 
-
-def make_authenticated_call(method, url, auth_token, data):
-    """Makes a HTTP call authenticated with the OAuth token."""
+def make_authenticated_call(method, url, token, data):
+    """Makes a HTTP call authenticated with the nativeAuth token."""
 
     import requests.exceptions
 
     session = locki_id_session()
     try:
         r = session.request(method,
-                            locki_id_endpoint(url),
+                            mvx_endpoint(url),
                             data=data,
                             headers={
-                                'Authorization': 'Bearer %s' % auth_token},
+                                'Authorization': 'Bearer %s' % token},
                             verify=True,
                             timeout=REQUESTS_TIMEOUT)
     except (requests.exceptions.HTTPError,
