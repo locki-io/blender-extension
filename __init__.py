@@ -10,7 +10,7 @@ import datetime
 
 bl_info = {
     'name': 'Locki-ID-Addon',
-    'author': 'Satish NVRN, Jean-Noël Schilling',
+    'author': 'Satish NVRN, Calin Georges, Jean-Noël Schilling',
     'version': (0, 1, 5),
     'blender': (3, 6, 2),
     'location': 'Add-on preferences + navigate to 3D view panel',
