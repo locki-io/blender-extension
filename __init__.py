@@ -9,7 +9,7 @@ import typing
 import datetime
 
 bl_info = {
-    'name': 'Locki-ID-Addon',
+    'name': 'Locki_id_Addon',
     'author': 'Satish NVRN, Calin Georges, Jean-Noël Schilling',
     'version': (0, 1, 5),
     'blender': (3, 6, 2),
@@ -129,22 +129,12 @@ class LockiIdPreferences(AddonPreferences):
         name='nonce', 
         default= 0
     )
-
-    # store the NFTs in addon_prefs 
-    # Define a PropertyGroup to represent items in the combobox
-    class EnumNftsPropertyGroup(bpy.types.PropertyGroup):
-        identifier: bpy.props.StringProperty()
-        name: bpy.props.StringProperty()
-        url: bpy.props.StringProperty()
-
-    bpy.utils.register_class(EnumNftsPropertyGroup)    
-    # Define a CollectionProperty to store items for the combobox
-    nfts_collection: bpy.props.CollectionProperty(
-        #items=[("default", "default", "Choose your nft")],
-        name="My Nfts",
-        #default="default",        
-        description='All loaded Nfts by identifier',
-        type=EnumNftsPropertyGroup
+    nfts_enum: EnumProperty(
+        items=[('default', "default", "Choose your nft")],
+        # Enumeration of the nfts it is an object
+        name='All my NFTs',  # Default item
+        default='default',
+        description='Formated enumeration of the NFTs',
     )
 
     def reset_messages(self):
@@ -228,9 +218,27 @@ class LockiIdMixin:
         addon_prefs.reset_messages()
         return addon_prefs
 
+# def update_nfts_data(self, context):
+#     nfts_data = context.scene.locki.nfts_data
+#     nfts_data.clear()  # Clear the collection first
+#     nfts_data = [("default", "default", "Choose your nft")]
+#     # Access LockiIdProfile.nfts and populate nfts_data
+#     for identifier, data in LockiIdProfile.nfts.items():
+#     #for identifier, data in context.scene.locki.nfts.items():
+#         for key, url in data.items():
+#             if (key.endswith("Url") or key.startswith("uri")) and url.endswith(".svg"):
+#                 # item = nfts_data.add()
+#                 item.identifier = f'{identifier}-{key}'
+#                 item.name = f"{url.split('/')[-1]} of {identifier}"
+#                 item.url = url
+#     print(nfts_data)
+
+
+
 class LockiIdLogin(LockiIdMixin, Operator):
     bl_idname = 'locki_id.login'
     bl_label = 'Login'
+   
 
     def execute(self, context):
         import random
@@ -265,6 +273,9 @@ class LockiIdLogin(LockiIdMixin, Operator):
             addon_prefs.error_message = auth_result.error_message
             if LockiIdProfile.address:
                 profiles.logout(LockiIdProfile.address)
+
+        # After logging in, call the update_nfts_data function to populate nfts_data
+        update_nfts_data(self, context)
 
         LockiIdProfile.read_json()
 
@@ -358,20 +369,25 @@ class UTILS_OT_get_nfts(LockiIdMixin, bpy.types.Operator):
 
     def execute(self, context):
         addon_prefs = self.addon_prefs(context)
-
+        locki = context.scene.locki
         nft_list = mvx_requests.get_nftlist_from_address(LockiIdProfile.address)
         nft_urls = mvx_requests.get_urllist_from_list(nft_list)
 
         # store them into the profile 
         LockiIdProfile.nfts = nft_urls
-        test = mvx_requests.transform_nft_urls_in_menu(nft_urls)
+
+        records = mvx_requests.transform_nft_urls_in_menu(nft_urls)
+        print(records)
+
+        # Update the nfts_enum property in addon preferences
+        # addon_prefs.nfts_enum = formatted_records
         # debugging the result : 
         # print(test)
-        count = len(test)
+        count = len(records)
         mvx_requests.show_message(LockiIdProfile.address, f"{count} NFTs loaded")
-        content_menu_nft = mvx_requests.transform_nft_urls_in_menu(nft_urls)
-        print(content_menu_nft)
-        LockiIdPreferences.nfts_collection = content_menu_nft
+        #content_menu_nft = mvx_requests.transform_nft_urls_in_menu(nft_urls)
+        #print(content_menu_nft)
+        #LockiIdPreferences.nfts_collection = content_menu_nft
         # nfts_collection is readonly but I would like to do that:
         #addon_prefs.nfts_collection = mvx_requests.transform_nft_urls_in_menu(nft_urls)
         #expect a string enum not a list
@@ -379,6 +395,18 @@ class UTILS_OT_get_nfts(LockiIdMixin, bpy.types.Operator):
 
         addon_prefs.ok_message = tip_('You have loaded the NFTs')
         LockiIdProfile.read_json()
+
+        return {"FINISHED"}
+
+class UTILS_OT_load_nft(LockiIdMixin, bpy.types.Operator):
+    bl_idname= "utils.load_nft"
+    bl_label= "Load your NFT here"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        locki = context.scene.locki
+        # locki.nfts_collection
+        print(locki.nfts_collection)
 
         return {"FINISHED"}
 
@@ -394,16 +422,17 @@ class VIEW3D_PT_locki_panel(LockiIdMixin, bpy.types.Panel):
     bl_category = "Locki.io"  # found in the Sidebar
     bl_label = "Locki Panel"  # found at the top of the Panel
 
-    # ui_expanded_nft: BoolProperty(
-    #     name="Show Nfts Expanded",
-    #     description="Shows the box 'NFT' expanded in user interface",
-    #     default=False, options={'SKIP_SAVE'})
-
     def prepare(self, context):        
         sce = context.scene
         self.recall_mode = context.object.mode
+        update_nfts_data(self, context)
+
+    def invoke(self, context, event):
+        update_nfts_data(self, context)
 
     def draw(self, context):
+        """Load the addons_prefs"""
+        addon_prefs = self.addon_prefs(context)
         """define the scene of the panel"""
         locki = context.scene.locki
         """define the layout of the panel"""
@@ -416,31 +445,27 @@ class VIEW3D_PT_locki_panel(LockiIdMixin, bpy.types.Panel):
             row.operator("utils.get_nfts", text="Get MvX nfts")
 
             # Access the items in AddonPreferences and populate the combobox
-            #preferences = context.preferences.addons[__name__].preferences
-            # or 
-            addon_prefs = self.addon_prefs(context)
-            nfts_collection = addon_prefs.nfts_collection
-
-            # Create a list of tuples for the items in the combobox
-            items = [("default", "Default", "Choose your nft")]  # Default item
+            # preferences = context.preferences.addons[__name__].preferences            
+            # nfts_collection = addon_prefs.nfts
 
             # Add items based on your nfts_collection
-            for items in nfts_collection:
-                items.append((items.identifier, items.description, items.url))  # Use the data from your collection
-            
+            # for items in nfts_collection:
+            #     items.append((items.identifier, items.description, items.url))  # Use the data from your collection
             
             # Display the combobox
             box = layout.box()
             row = box.row(align=True)
             row.label(text='My NFTs')
-            row.prop(locki, "ui_expanded_nft", text="Select an nft:", 
+            row.prop(locki, "ui_expanded_nft", text=('HIDE' if locki.ui_expanded_nft else 'SHOW'), 
                               icon=('TRIA_DOWN' if locki.ui_expanded_nft else 'TRIA_RIGHT'))
             if locki.ui_expanded_nft:
-                box.prop(locki,"", text="my NFTs")
-            row = box.row(align=True)
-            row.prop(locki, "file_format")
-            row = box.row(align=True)
-            row.prop(locki, "my_selected_nft", text="Selection")
+                box.prop(locki,"nfts_collection", text="my NFTs",icon='COLLECTION_NEW', emboss=True)
+                row = box.row(align=True)
+                row.prop(locki, "file_format")
+                row = box.row(align=True)
+                row.prop(locki, "my_selected_nft", text="url")
+                row = box.row(align=True)
+                row.operator("utils.load_nft", text="LOAAAAAAAAAAD")
  
             # Use your scene property ??? really 
             
@@ -461,6 +486,37 @@ class VIEW3D_PT_locki_panel(LockiIdMixin, bpy.types.Panel):
         row = self.layout.row()
         row.operator("mesh.add_rotating_cube", text="Add rotating cube")
 
+    # store the NFTs in addon_prefs 
+    # Define a PropertyGroup to represent items in the combobox
+
+def update_nfts_data(self, context):
+    items = []  # Clear the collection first
+    
+    # Access LockiIdProfile.nfts and populate nfts_data
+    for identifier, data in LockiIdProfile.nfts.items():
+    #for identifier, data in context.scene.locki.nfts.items():
+        for key, url in data.items():
+            if (key.endswith("Url") or key.startswith("uri")) and url.endswith(".svg"):
+                # item = nfts_data.add()
+                items.append((f'{identifier}-{key}', f"{url.split('/')[-1]} of {identifier}", url))
+    if items is None:
+        items = [("default", "default", "Choose your nft")]
+    
+    return items
+
+# Callback function to update my_selected_nft
+def update_selected_nft_url(self, context):
+    selected_item = context.scene.locki.nfts_data[context.scene.locki.nfts_collection]
+    if selected_item:
+        context.scene.locki.my_selected_nft = selected_item.url
+    else:
+        context.scene.locki.my_selected_nft = ""
+        
+class NftDataItem(PropertyGroup):
+    identifier: StringProperty()
+    name: StringProperty()
+    url: StringProperty()
+
 class SceneProperties(PropertyGroup):
     file_format: EnumProperty(
         name="Filter",
@@ -476,16 +532,34 @@ class SceneProperties(PropertyGroup):
     ui_expanded_nft: BoolProperty(
         name="Show Nfts Expanded",
         description="Shows the box 'Nfts choice' expanded in user interface",
-        default=True, options={'SKIP_SAVE'})
+        default=True, 
+        options={'SKIP_SAVE'}
+        )
     
     # Define your custom property for the Scene object
     my_selected_nft: StringProperty(
         name="My Selected Nft",
         default="",
-        description="A description for my selected NFT"
+        description="A description for my selected NFT",
+        set=update_selected_nft_url
+    )
+    nfts_data: bpy.props.CollectionProperty(
+        type=NftDataItem,
+        name="My Nfts Data",
+        description='All loaded Nfts by identifier',
+    )
+
+    # Define a CollectionProperty to store items for the combobox
+    nfts_collection: EnumProperty(
+        items=update_nfts_data,
+        name="My Nfts",
+        # default=1,        
+        description='All loaded Nfts by identifier',
+        #update=update_selected_nft_url
     )
 
 module_classes = (
+    NftDataItem,
     SceneProperties,
 
     LockiIdLogin,
@@ -495,6 +569,7 @@ module_classes = (
 
     UTILS_OT_get_nfts, # register utility operators
     UTILS_OT_get_nonce, # Register utility operators
+    UTILS_OT_load_nft, # Let us load !
 
     get_scripts.MESH_OT_add_subdiv_monkey, # Register mesh and scene utilities
     get_scripts.MESH_OT_add_rotating_cube_obj, # Register mesh and scene utilities
@@ -513,7 +588,10 @@ def register():
 
     # Define a full scene (UI) reserved for the addon all defined in Class Scene property
     bpy.types.Scene.locki = PointerProperty(type=SceneProperties)
-   
+    # Register the update handler for nfts_collection
+    # bpy.types.Scene.locki.nfts_collection = bpy.props.IntProperty(
+    #     update=update_selected_nft_url
+    # )
     LockiIdProfile.read_json()
 
     # Reset messages or any final initialization
@@ -522,6 +600,8 @@ def register():
 
 
 def unregister():
+    # Unregister the update handler for nfts_collection
+    # del bpy.types.Scene.locki.nfts_collection
     # Reset messages or any final de-initialization
     preferences = LockiIdMixin.addon_prefs(bpy.context)
     preferences.reset_messages()  # Assuming you might want to clean up some stuff during unregister as well.
