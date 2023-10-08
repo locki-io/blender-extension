@@ -31,7 +31,7 @@ class LockiIdProfile(metaclass=_BIPMeta):
     token = ''
     expires = ''
     nfts = {}
-    nonce = "0"
+    nonce = 0
 
     @classmethod
     def reset(cls):
@@ -40,7 +40,7 @@ class LockiIdProfile(metaclass=_BIPMeta):
         cls.token = ''
         cls.expires = ''
         cls.nfts = {}
-        cls.none = "0"
+        cls.nonce = 0
 
     @classmethod
     def read_json(cls):

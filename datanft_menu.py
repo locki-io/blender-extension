@@ -1,6 +1,73 @@
-# class invoke to store information from the data NFT of the user 
 import bpy
-from bpy.props import StringProperty
+
+# Define a PropertyGroup to structure the data stored in AddonPreferences
+class MyAddonPreferences(bpy.types.AddonPreferences):
+    bl_idname = __name__
+
+    # Define a PropertyGroup to represent items in the combobox
+    class EnumNftsPropertyGroup(bpy.types.PropertyGroup):
+        identifier: bpy.props.StringProperty()
+        name: bpy.props.StringProperty()
+        url: bpy.props.StringProperty()
+
+    # Define a CollectionProperty to store nfts for the combobox
+    nfts_collection: bpy.props.CollectionProperty(
+        items=[("default", "default", "Choose your nft")],
+        name="My Nfts",
+        default="default",        
+        description='All loaded Nfts by identifier',
+        type=EnumNftsPropertyGroup
+    )
+
+# Define an Operator to update the nfts in the CollectionProperty
+class UpdateNftsOperator(bpy.types.Operator):
+    bl_idname = "my.update_nfts_operator"
+    bl_label = "Update Nfts"
+
+    def execute(self, context):
+        # Dynamic logic to update items in the CollectionProperty
+        addon_prefs = self.addon_prefs(context)
+
+
+
+# Define a Panel to display the combobox
+class MyPanel(bpy.types.Panel):
+    bl_idname = "my.panel"
+    bl_label = "My Panel"
+    bl_category = "My Addon"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+
+    def draw(self, context):
+        layout = self.layout
+
+        # Access the items in AddonPreferences and populate the combobox
+        preferences = context.preferences.addons[__name__].preferences
+        nfts_collection = preferences.nfts_collection
+        
+        # Create a list of tuples for the items in the combobox
+        items = [("default", "Default", "Choose your nft")]  # Default item
+
+        # Add items based on your nfts_collection
+        for items in nfts_collection:
+            items.append((items.identifier, items.description, items.url))  # Use the data from your collection
+
+        # Display the combobox
+        layout.label(text="Select an item:")
+        layout.prop(context.scene, "my_selected_item", text="NFT Items", icon='QUESTION')  # Use your scene property
+
+def register():
+    bpy.utils.register_class(MyAddonPreferences)
+    bpy.utils.register_class(UpdateNftsOperator)
+    bpy.utils.register_class(EnumNftsPropertyGroup)
+    bpy.utils.register_class(MyPanel)
+
+def unregister():
+    bpy.utils.unregister_class(MyAddonPreferences)
+    bpy.utils.unregister_class(UpdateNftsOperator)
+    bpy.utils.unregister_class(EnumNftsPropertyGroup)
+    bpy.utils.unregister_class(MyPanel)
+
 
 class NftUrlItem(bpy.types.PropertyGroup):
     identifier: StringProperty(name="Identifier")

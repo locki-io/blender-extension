@@ -34,7 +34,7 @@ def transform_nft_urls_in_menu(nft_url):
             #case svg only first
             if (key.endswith("Url") or key.startswith("uri")) and url.endswith(".svg"):
                 # Append to the tuple in the format you mentioned
-                nft_identifiers.append((f"{identifier}-{key}", f"{url.split('/')[-1]}' of '{identifier}", url))
+                nft_identifiers.append((f"{identifier}-{key}", f"{url.split('/')[-1]} of {identifier}", url))
 
     return nft_identifiers
 
