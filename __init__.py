@@ -398,6 +398,71 @@ class UTILS_OT_get_nfts(LockiIdMixin, bpy.types.Operator):
 
         return {"FINISHED"}
 
+import bpy
+import tempfile
+import os
+import urllib.request
+import ssl
+
+def load_url_as_object(url, file_format='OBJ', location=(0,0,0)):
+    # Disable SSL certificate verification (not recommended)
+    ssl._create_default_https_context = ssl._create_unverified_context
+    """Option 2: Configure Blender to Use a Trusted Certificate Bundle (Recommended)
+
+    It's a better practice to configure Blender to use a trusted certificate bundle. You can download a certificate bundle file (e.g., cacert.pem) from a trusted source (e.g., Mozilla) and specify it in your Blender user preferences.
+
+    Here's how to do it:
+
+    Download the certificate bundle file (cacert.pem) from a trusted source. One such source is the Mozilla CA Certificate Program: https://curl.se/docs/caextract.html
+
+    In Blender, go to Edit > Preferences.
+
+    In the Preferences window, navigate to the "System" tab.
+
+    Under the "SSL Certificate Bundle" section, click the "Open" button to browse and select the downloaded certificate bundle file (cacert.pem).
+
+    Save your preferences.
+
+    After configuring Blender to use a trusted certificate bundle, it should be able to perform SSL certificate verification correctly when making HTTPS requests.
+    """
+    supported_formats = {'OBJ', 'FBX', 'STL', 'SVG'}  # Add more formats if needed
+
+    if file_format not in supported_formats:
+        print(f"Unsupported file format: {file_format}")
+        return
+
+    # Create a temporary directory to store the downloaded file
+    temp_dir = tempfile.mkdtemp()
+
+    try:
+        # Construct the local file path for the downloaded file
+        file_name = os.path.basename(url)
+        local_path = os.path.join(temp_dir, file_name)
+
+        # Download the file from the URL
+        urllib.request.urlretrieve(url, local_path)
+
+        # Import the downloaded file as an object in Blender
+        if file_format == 'OBJ':
+            bpy.ops.import_scene.obj(filepath=local_path)
+        elif file_format == 'FBX':
+            bpy.ops.import_scene.fbx(filepath=local_path)
+        elif file_format == 'STL':
+            bpy.ops.import_mesh.stl(filepath=local_path)
+        elif file_format == 'SVG':
+            bpy.ops.import_curve.svg(filepath=local_path , filter_glob="*.svg")
+        # Add more import formats as needed
+
+    except Exception as e:
+        print(f"Error loading URL as object: {e}")
+    finally:
+        # Clean up: remove the temporary directory and its contents
+        if os.path.exists(temp_dir):
+            for root, dirs, files in os.walk(temp_dir):
+                for file in files:
+                    os.remove(os.path.join(root, file))
+            os.rmdir(temp_dir)
+
 class UTILS_OT_load_nft(LockiIdMixin, bpy.types.Operator):
     bl_idname= "utils.load_nft"
     bl_label= "Load your NFT here"
@@ -406,7 +471,7 @@ class UTILS_OT_load_nft(LockiIdMixin, bpy.types.Operator):
     def execute(self, context):
         locki = context.scene.locki
         # locki.nfts_collection
-        print(locki.nfts_collection)
+        load_url_as_object(locki.nfts_collection, 'SVG')
 
         return {"FINISHED"}
 
@@ -462,8 +527,8 @@ class VIEW3D_PT_locki_panel(LockiIdMixin, bpy.types.Panel):
                 box.prop(locki,"nfts_collection", text="my NFTs",icon='COLLECTION_NEW', emboss=True)
                 row = box.row(align=True)
                 row.prop(locki, "file_format")
-                row = box.row(align=True)
-                row.prop(locki, "my_selected_nft", text="url")
+                #row = box.row(align=True)
+                #row.prop(locki, "my_selected_nft", text="url")
                 row = box.row(align=True)
                 row.operator("utils.load_nft", text="LOAAAAAAAAAAD")
  
@@ -491,14 +556,18 @@ class VIEW3D_PT_locki_panel(LockiIdMixin, bpy.types.Panel):
 
 def update_nfts_data(self, context):
     items = []  # Clear the collection first
-    
+    data_nft = context.scene.locki.nfts_data
     # Access LockiIdProfile.nfts and populate nfts_data
     for identifier, data in LockiIdProfile.nfts.items():
     #for identifier, data in context.scene.locki.nfts.items():
         for key, url in data.items():
             if (key.endswith("Url") or key.startswith("uri")) and url.endswith(".svg"):
                 # item = nfts_data.add()
-                items.append((f'{identifier}-{key}', f"{url.split('/')[-1]} of {identifier}", url))
+                items.append((url , f'{identifier}-{key}', f"{url.split('/')[-1]} of {identifier}"))
+                #item = data_nft.add()
+                #item.identifier = f'{identifier}-{key}'  # Make sure the identifier matches the format of the items in nfts_collection
+                #item.name = f"{url.split('/')[-1]} of {identifier}"
+                #item.url = url
     if items is None:
         items = [("default", "default", "Choose your nft")]
     
@@ -511,7 +580,7 @@ def update_selected_nft_url(self, context):
         context.scene.locki.my_selected_nft = selected_item.url
     else:
         context.scene.locki.my_selected_nft = ""
-        
+
 class NftDataItem(PropertyGroup):
     identifier: StringProperty()
     name: StringProperty()
@@ -540,8 +609,7 @@ class SceneProperties(PropertyGroup):
     my_selected_nft: StringProperty(
         name="My Selected Nft",
         default="",
-        description="A description for my selected NFT",
-        set=update_selected_nft_url
+        description="A description for my selected NFT"
     )
     nfts_data: bpy.props.CollectionProperty(
         type=NftDataItem,
