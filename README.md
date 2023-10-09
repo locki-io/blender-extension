@@ -18,7 +18,7 @@ By integrating with `locki.io`, this addon promotes a revolutionary sharing syst
 
 - **Blender**: Ensure you're running a compatible version of Blender. [Download the latest version here](https://www.blender.org/download/).
 - **MultiversX Devnet Wallet**: Before using this addon, you must possess a wallet on the MultiversX devnet. To create one you can go [here](https://devnet-wallet.multiversx.com/create).
-- **API Key from app.locki.io**: **soon** ~~Connect your MultiversX devnet wallet to [app.locki.io](https://app.locki.io) and obtain a connection API key. This key allows the addon to communicate and manage 3D data from your wallet.~~
+- **API Key from app.locki.io**: Connect your MultiversX devnet wallet to [app.locki.io](https://app.locki.io/profile) and obtain a connection API key. This key allows the addon to communicate and manage 3D data from your wallet.
 
 ## Installation
 
