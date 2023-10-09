@@ -4,16 +4,13 @@ import functools
 import logging
 import typing
 
-from . import comm_test
-
 log = logging.getLogger(__name__)
 
 # Can be overridden by setting the environment variable LOCKI_ID_ENDPOINT. Overrid with localhost:3000 for development
-LOCKI_ID_ENDPOINT = 'http://localhost:3000/'  # JNS add port here
+LOCKI_ID_ENDPOINT = 'http://api.locki.io'  
 MVX_ENDPOINT = 'https://devnet-api.multiversx.com/'
 AUTH_ENDPOINT = 'https://2rkm8gkhk7.execute-api.eu-central-1.amazonaws.com/'
 
-# production LOCKI_ID_ENDPOINT = 'https://api.locki.io/'
 
 # Will become a requests.Session at the first request to Locki ID.
 requests_session = None

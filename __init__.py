@@ -30,9 +30,10 @@ if 'communication' in locals():
     get_scripts = importlib.reload(get_scripts)
     clean_scene = importlib.reload(clean_scene)
     mvx_requests = importlib.reload(mvx_requests)
-    # datanft_menu = importlib.reload(datanft_menu)
 else:
-    from . import communication, profiles, get_scripts, clean_scene, mvx_requests
+    from . import communication, profiles, mvx_requests
+    from .scripts import clean_scene
+    from .scripts import get_scripts
 
 LockiIdProfile = profiles.LockiIdProfile
 LockiIdCommError = communication.LockiIdCommError
