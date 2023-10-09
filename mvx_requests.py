@@ -4,7 +4,6 @@ import urllib
 import base64
 import binascii
 
-
 from . import communication
 
 def show_message(input, message):

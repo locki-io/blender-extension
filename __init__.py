@@ -478,7 +478,7 @@ class UTILS_OT_load_nft(LockiIdMixin, bpy.types.Operator):
 
 # class naming convention ‘CATEGORY_PT_name’
 class VIEW3D_PT_locki_panel(LockiIdMixin, bpy.types.Panel):
-    bl_idname = "view3d.locki_panel"
+    bl_idname = "VIEW3D_PT_locki_panel"
     # where to add the panel in the UI
     # 3D Viewport area (find list of values here https://docs.blender.org/api/current/bpy_types_enum_items/space_type_items.html#rna-enum-space-type-items)
     bl_space_type = "VIEW_3D"
