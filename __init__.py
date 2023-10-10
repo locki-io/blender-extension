@@ -384,7 +384,7 @@ class UTILS_OT_get_nfts(LockiIdMixin, bpy.types.Operator):
         # addon_prefs.nfts_enum = formatted_records
         # debugging the result : 
         # print(test)
-        count = len(records)
+        count = len(records)-1
         mvx_requests.show_message(LockiIdProfile.address, f"{count} NFTs loaded")
         #content_menu_nft = mvx_requests.transform_nft_urls_in_menu(nft_urls)
         #print(content_menu_nft)
@@ -560,9 +560,10 @@ def update_nfts_data(self, context):
     data_nft = context.scene.locki.nfts_data
     # Access LockiIdProfile.nfts and populate nfts_data
     for identifier, data in LockiIdProfile.nfts.items():
-    #for identifier, data in context.scene.locki.nfts.items():
+        compatible_extensions = ['.svg', '.glb', '.gltf', '.py', 'step', '.png']
+        # filter_on = 
         for key, url in data.items():
-            if (key.endswith("Url") or key.startswith("uri")) and url.endswith(".svg"):
+            if (key.endswith("Url") or key.startswith("uri")) and any(url.endswith(ext) for ext in compatible_extensions):
                 # item = nfts_data.add()
                 items.append((url , f'{identifier}-{key}', f"{url.split('/')[-1]} of {identifier}"))
                 #item = data_nft.add()
