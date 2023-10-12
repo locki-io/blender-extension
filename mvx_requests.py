@@ -6,6 +6,7 @@ import binascii
 
 
 from . import communication
+from . import profiles
 
 def show_message(input, message):
     def draw(self, context):
@@ -32,8 +33,8 @@ def transform_nft_urls_in_menu(nft_url):
         #print(data)
         for key, url in data.items():
             #compatible file extension 
-            compatible_extensions = ['.svg', '.glb', '.glbt', '.py', 'step', '.png']
-            if (key.endswith("Url") or key.startswith("uri")) and any(url.endswith(ext) for ext in compatible_extensions):
+            compatible_extensions = ['.svg', '.glb', '.glbt', '.py', 'step']
+            if url is not None and (key.endswith("Url") or key.startswith("uri")) and any(url.endswith(ext) for ext in compatible_extensions):
                 # Append to the tuple in the format you mentioned
                 nft_identifiers.append((f'{identifier}-{key}', f"{url.split('/')[-1]} of {identifier}", url))
 
@@ -66,6 +67,35 @@ def get_nftlist_from_address(address):
 
     return resp
 
+def extract_data_preview_url(metadata_json_url):
+    import json
+    import requests
+
+    try:
+        response = requests.get(metadata_json_url)
+        
+        # Check if the request was successful (status code 200)
+        if response.status_code == 200:
+            # Get the content of the response
+            content = response.text
+            # Load the metadata JSON loaded from the file)
+            metadata = json.loads(content)
+        else:
+            print(f"Failed to retrieve content. Status code: {response.status_code}")
+    except requests.exceptions.RequestException as e:
+        print(f"An error occurred: {e}")
+
+    # Initialize the URL to None in case "Data Preview URL" is not found
+    dataPreviewUrl = None
+
+    # Search for the "Data Preview URL" trait in the attributes list
+    for attribute in metadata.get("attributes", []):
+        if attribute.get("trait_type") == "Data Preview URL":
+            dataPreviewUrl = attribute.get("value")
+            break  # Exit the loop once found
+
+    return dataPreviewUrl
+
 def get_urllist_from_list(nftlist):
     result = {}
     for item in nftlist:
@@ -90,6 +120,7 @@ def get_urllist_from_list(nftlist):
         if (item['collection'] == 'DATANFTFT4-3ba099'):  # Check if 'media' key exists and is not empty
             identifier = item['identifier']
             name = item['name']
+            nonce = item['nonce']
             attributes = item.get('attributes','')
             media = item['media'][0]  # Assuming 'media' is a list and taking the first element
             uris = item.get('uris', [])  # Get 'uris' or default to an empty list if it doesn't exist
@@ -103,11 +134,23 @@ def get_urllist_from_list(nftlist):
             decoded_uris = [clear_url_64(uri) for uri in uris]
             uri_dict = {f'uri{i + 1}': decoded_uri for i, decoded_uri in enumerate(decoded_uris)}
             
+            # Create a url for the Datastream in app.locki.io 
+
+            lockiUrl = 'https://app.locki.io/datanftview?nonce=' + str(nonce) + '&nativeauthtoken=' + profiles.LockiIdProfile.token
+            # Check if the end of the decoded URIs is "metadata.json"
+            if decoded_uris and decoded_uris[-1].endswith("metadata.json"):
+            # If "metadata.json" is found at the end, set data_preview_url
+                dataPreviewUrl = extract_data_preview_url(decoded_uris[-1])
+            else:
+                dataPreviewUrl = None
+
             result[identifier]= {
                 'attributes' : attributes,
                 'name' : name,
                 'originalUrl': original_url,
                 'thumbnailUrl': thumbnail_url,
+                'dataPreviewUrl': dataPreviewUrl,
+                'lockiUrl': lockiUrl,
                 'url': url,
                 **uri_dict  # This syntax merges the uri_dict into the result dictionary
             }
