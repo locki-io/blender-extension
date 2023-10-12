@@ -481,13 +481,21 @@ def load_url_as_object(url, file_format, location=(0,0,0)):
                 os.rmdir(temp_dir)
 
 class UTILS_OT_load_nft(LockiIdMixin, bpy.types.Operator):
+
+
     bl_idname= "utils.load_nft"
     bl_label= "Load your NFT here"
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
+        import webbrowser
         locki = context.scene.locki
-        # locki.nfts_collection
+        if locki.nfts_collection and "datanftview" in locki.nfts_collection:
+            # Open a URL in the default web browser
+            webbrowser.open(locki.nfts_collection)
+
+            return {"FINISHED"}
+        # locki.nfts_collection load the file 
         load_url_as_object(locki.nfts_collection, 'GLB')
 
         return {"FINISHED"}
