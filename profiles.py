@@ -199,14 +199,14 @@ def milliseconds_to_iso8601(ms_timestamp):
     # Format the datetime object as ISO 8601 with fractional seconds and 'Z' suffix
     return dt.isoformat()
 
-def save_as_active_profile(auth_result: communication.AuthResult, address, api_key, nfts, nonce):
+def save_as_active_profile(auth_result: communication.AuthResult, address, token, nfts, nonce):
     """Saves the given info as the active profile."""
     
     formated_expires = milliseconds_to_iso8601(auth_result.expires)
     LockiIdProfile.address = address
-    LockiIdProfile.token = auth_result.token
+    LockiIdProfile.token = token
     LockiIdProfile.expires = formated_expires.replace('+00:00', 'Z')
-    LockiIdProfile.api_key = api_key
+    #LockiIdProfile.api_key = api_key
     LockiIdProfile.nfts = nfts
     LockiIdProfile.nonce = nonce
   

@@ -23,11 +23,11 @@ class LockiIdCommError(RuntimeError):
 
 class AuthResult:
     def __init__(self, *, success: bool, address: str = None,
-                 api_key: str = None, token: str = None, expires: str = None,
+                 token: str = None, expires: int = 1697228561601,
                  error_message: typing.Any = None):  # when success=False
         self.success = success
         self.address = address
-        self.api_key = api_key
+        #self.api_key = api_key
         self.token = token
         self.error_message = str(error_message)
         self.expires = expires
@@ -39,7 +39,7 @@ def host_label():
     # info on where Blender is running
     return 'Blender running on %r' % socket.gethostname()
 
-def locki_id_session():
+def locki_id_session(token: str = None):
     """Returns the Requests session, creating it if necessary."""
     global requests_session
     import requests.adapters
@@ -75,7 +75,8 @@ def locki_id_session():
     addon_version = '.'.join(str(component)
                               for component in bl_info['version'])
     requests_session.headers['User-Agent'] = f'Blender/{blender_version} Locki-ID-Addon/{ addon_version }'
-    
+    if token is not None:
+        requests_session.headers['Authorization'] = token
     return requests_session
 
 @functools.lru_cache(maxsize=None)
@@ -114,7 +115,7 @@ def mvx_endpoint(endpoint_path=None):
     # urljoin() is None-safe for the 2nd parameter.
     return urllib.parse.urljoin(base_url, endpoint_path)
 
-def mvx_authenticate(address) -> AuthResult:
+def mvx_authenticate(address, token) -> AuthResult:
     import requests.exceptions
 
     # Payload is optional (GET) 
@@ -124,7 +125,7 @@ def mvx_authenticate(address) -> AuthResult:
     )
 
     url = mvx_endpoint(u'/address/' + address + u'/nonce')
-    session = locki_id_session()
+    session = locki_id_session(token)
     try:
         r = session.get(url, data=payload, verify=True,
                          timeout=REQUESTS_TIMEOUT)
@@ -168,7 +169,7 @@ def locki_id_endpoint(endpoint_path=None):
     # urljoin() is None-safe for the 2nd parameter.
     return urllib.parse.urljoin(base_url, endpoint_path)
 
-def locki_id_server_authenticate( api_key ) -> AuthResult:
+def locki_id_server_authenticate( token ) -> AuthResult:
     """Authenticate the user with the server with a single transaction
     containing api_key (must happen via HTTPS).
 
@@ -181,19 +182,18 @@ def locki_id_server_authenticate( api_key ) -> AuthResult:
     import requests.exceptions
 
     payload = dict(
-        apiKey=api_key,
-        host_label=host_label()
+        #token=token,
+        #host_label=host_label()
     )
     # the locki api server need an identify endpoint
     # create the route the API /identity
     url = auth_endpoint(u'/Prod/identity')
-    session = locki_id_session()
+    session = locki_id_session(token)
     user_agent = session.headers.get('User-Agent')
     host = session.headers.get('Host')
     print ('User-agent :' + user_agent)
-    print ('Host :' + str(host))
     try:
-        r = session.get(url, params=payload, verify=True,
+        r = session.get(url, verify=True,
                          timeout=REQUESTS_TIMEOUT)
     except (requests.exceptions.SSLError,
             requests.exceptions.HTTPError,
@@ -204,16 +204,17 @@ def locki_id_server_authenticate( api_key ) -> AuthResult:
 
     if r.status_code == 200:
         resp = r.json()
+        return AuthResult(success=True, address=resp['address'], expires=resp['expires'])
         # status = resp['status_code']
-        nativeAuthToken = resp['nativeAuthToken']
-        if nativeAuthToken is not None: # status == 'success':
+        #nativeAuthToken = resp['nativeAuthToken']
+        #if nativeAuthToken is not None: # status == 'success':
             # defines the structure of the payload server side response
-            return AuthResult(success=True,
-                              token=resp['nativeAuthToken'],
-                              expires=resp['expiry'], 
-                              )
-        else: #if status == 'fail':
-            return AuthResult(success=False, error_message='api-key is incorrect')
+        #    return AuthResult(success=True,
+        #                      token=resp['nativeAuthToken'],
+        #                      expires=resp['expiry'], 
+        #                      )
+        #else: #if status == 'fail':
+        #    return AuthResult(success=False, error_message='api-key is incorrect')
 
     return AuthResult(success=False,
                       error_message='There was a problem communicating with'
@@ -234,7 +235,7 @@ def locki_id_server_validate(token) -> typing.Tuple[typing.Optional[str], typing
     import requests.exceptions
 
     url = mvx_endpoint(u'/validate_token')  # JNS change route to transaction to pingpong
-    session = locki_id_session()
+    session = locki_id_session(token)
     try:
         r = session.post(url, data={'token': token},
                          verify=True, timeout=REQUESTS_TIMEOUT)
@@ -269,7 +270,7 @@ def locki_id_server_logout(address, token):
         address=address,
         token=token
     )
-    session = locki_id_session()
+    session = locki_id_session(token)
     try:
         r = session.post(locki_id_endpoint(u'/delete_token'),
                          data=payload, verify=True, timeout=REQUESTS_TIMEOUT)
@@ -300,7 +301,7 @@ def make_authenticated_call(method, url, token, data):
 
     import requests.exceptions
 
-    session = locki_id_session()
+    session = locki_id_session(token)
     try:
         r = session.request(method,
                             mvx_endpoint(url),

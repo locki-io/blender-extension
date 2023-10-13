@@ -126,6 +126,11 @@ class LockiIdPreferences(AddonPreferences):
         options={'HIDDEN', 'SKIP_SAVE'},
         subtype='PASSWORD'
     )
+    token: StringProperty(
+        name='NativeAuthToken',
+        default='',
+        options={'HIDDEN', 'SKIP_SAVE'}
+    )
     nonce: IntProperty(
         name='nonce', 
         default= 0
@@ -182,10 +187,10 @@ class LockiIdPreferences(AddonPreferences):
                 endpoint = communication.auth_endpoint()
                 if endpoint == communication.AUTH_ENDPOINT:
                     msg = tip_(
-                        'You are logged with key %s') % active_profile.api_key
+                        'You are logged with NativeAuthToken %s') % active_profile.token
                 else:
                     msg = tip_('You are logged in as %s at %s') % (
-                        active_profile.api_key, endpoint)
+                        active_profile.token, endpoint)
 
                 col = layout.column(align=True)
                 col.label(text=msg, icon='WORLD_DATA')
@@ -202,7 +207,7 @@ class LockiIdPreferences(AddonPreferences):
             
         else:
             layout.prop(self, 'address')
-            layout.prop(self, 'api_key')
+            layout.prop(self, 'token')
 
             # layout.prop(self, 'api_secret')
             layout.operator('locki_id.login')
@@ -249,7 +254,7 @@ class LockiIdLogin(LockiIdMixin, Operator):
 
         auth_result = communication.locki_id_server_authenticate(
             #address=addon_prefs.address,
-            api_key=addon_prefs.api_key,
+            token=addon_prefs.token,
         )
 
         if auth_result.success:
@@ -265,7 +270,7 @@ class LockiIdLogin(LockiIdMixin, Operator):
             profiles.save_as_active_profile(
                 auth_result,
                 addon_prefs.address,
-                addon_prefs.api_key,
+                addon_prefs.token,
                 {},
                 "0",
             )
