@@ -425,7 +425,7 @@ def load_url_as_object(url, file_format, location=(0,0,0)):
     Save your preferences.
     After configuring Blender to use a trusted certificate bundle, it should be able to perform SSL certificate verification correctly when making HTTPS requests.
     """
-    supported_formats = {'SVG', 'GLB'}  # Add more formats if needed
+    supported_formats = {'SVG', 'GLB', 'PY'}  # Add more formats if needed
 
     if file_format not in supported_formats:
         print(f"Unsupported file format: {file_format}")
@@ -452,6 +452,39 @@ def load_url_as_object(url, file_format, location=(0,0,0)):
             bpy.ops.import_scene.gltf(filepath=local_path, filter_glob="*.glb")
         else: 
             print(f"Error in downloading the obj/mesh file: {r.status_code} - {r.text}")
+
+    if file_format == 'PY':
+        session = communication.locki_id_session()
+        r = session.get(url, verify=True)
+        if r.status_code == 200:
+            print(f"passed with 200")
+            # Use Blender's temporary directory
+            temp_dir = bpy.path.abspath("//temp")
+            os.makedirs(temp_dir, exist_ok=True)
+
+            # Construct the local file path for the downloaded file
+            file_name = os.path.basename(url)
+            local_path = os.path.join(temp_dir, file_name)
+
+            # Write the content of the response to the local file
+            with open(local_path, 'wb') as f:
+                f.write(r.content)
+
+            # Create a new text block
+            new_text_block = bpy.data.texts.new(name=file_name)
+
+            # Load the content of the Python file into the text block
+            with open(local_path, 'r') as f:
+                new_text_block.from_string(f.read())
+            
+            # Select and show the imported script in the Text Editor
+            text = bpy.data.texts[file_name]
+            text.use_fake_user = True  # Ensure the script is saved
+            bpy.context.area.type = 'TEXT_EDITOR'  # Switch to the Text Editor area
+            bpy.ops.text.jump(filepath=text.filepath)  # Show the script in the Text Editor
+
+        else: 
+            print(f"Error in downloading the python file: {r.status_code} - {r.text}")
 
     elif file_format == 'SVG':
         # Create a temporary directory to store the downloaded file
@@ -501,9 +534,27 @@ class UTILS_OT_load_nft(LockiIdMixin, bpy.types.Operator):
 
             return {"FINISHED"}
         # locki.nfts_collection load the file 
-        load_url_as_object(locki.nfts_collection, 'GLB')
+
+        # capital file_format for loading 
+        file_type = url_to_file_type(locki.nfts_collection)
+        load_url_as_object(locki.nfts_collection, file_type)
 
         return {"FINISHED"}
+
+
+def url_to_file_type(url):
+    import os
+    from urllib.parse import urlparse
+    # Parse the URL to extract the path component
+    parsed_url = urlparse(url)
+    # Get the path from the parsed URL
+    path = parsed_url.path
+    # Use os.path.splitext to extract the file extension
+    _, file_extension = os.path.splitext(path)
+    # Remove the dot and convert to uppercase
+    file_extension = file_extension.lstrip('.').upper()
+
+    return file_extension
 
 # class naming convention ‘CATEGORY_PT_name’
 class VIEW3D_PT_locki_panel(LockiIdMixin, bpy.types.Panel):
@@ -602,7 +653,7 @@ def update_nfts_data(self, context):
         else:
             specific_extensions = [filter_on]
             extensions = [ext for ext in compatible_extensions if ext in specific_extensions]
-        print(extensions)
+        #print(extensions)
         for key, url in data.items():
             # special treatment of lockiUrl to get to the datastream
             if (key == 'lockiUrl') and (filter_on == 'none' or filter_on == 'stream'):

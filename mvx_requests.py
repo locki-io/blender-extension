@@ -136,7 +136,7 @@ def get_urllist_from_list(nftlist):
             
             # Create a url for the Datastream in app.locki.io 
 
-            lockiUrl = 'https://app.locki.io/datanftview?nonce=' + str(nonce) + '&nativeauthtoken=' + profiles.LockiIdProfile.token
+            lockiUrl = 'https://app.locki.io/dataNftView?nonce=' + str(nonce) + '&nativeAuthToken=' + profiles.LockiIdProfile.token
             # Check if the end of the decoded URIs is "metadata.json"
             if decoded_uris and decoded_uris[-1].endswith("metadata.json"):
             # If "metadata.json" is found at the end, set data_preview_url
