@@ -72,8 +72,9 @@ def locki_id_session(token: str = None):
                                    for component in bpy.app.version)
 
     from blender_id import bl_info
-    addon_version = '.'.join(str(component)
-                              for component in bl_info['version'])
+    from . import bl_info as bl_info_addon 
+    # addon_version = '.'.join(str(component) for component in bl_info['version'])
+    addon_version = bl_info_addon['version']
     requests_session.headers['User-Agent'] = f'Blender/{blender_version} Locki-ID-Addon/{ addon_version }'
     if token is not None:
         requests_session.headers['Authorization'] = token
