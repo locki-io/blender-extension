@@ -528,16 +528,16 @@ class UTILS_OT_load_nft(LockiIdMixin, bpy.types.Operator):
     def execute(self, context):
         import webbrowser
         locki = context.scene.locki
-        if locki.nfts_collection and "datanftview" in locki.nfts_collection:
-            # Open a URL in the default web browser
-            webbrowser.open(locki.nfts_collection)
-
-            return {"FINISHED"}
-        # locki.nfts_collection load the file 
 
         # capital file_format for loading 
         file_type = url_to_file_type(locki.nfts_collection)
-        load_url_as_object(locki.nfts_collection, file_type)
+        if locki.nfts_collection and "dataNftView" in locki.nfts_collection and file_type == '':
+            # Open a URL in the default web browser
+            webbrowser.open(locki.nfts_collection)
+            return {"FINISHED"}
+        # locki.nfts_collection load the file 
+        else:
+            load_url_as_object(locki.nfts_collection, file_type)
 
         return {"FINISHED"}
 
@@ -648,7 +648,7 @@ def update_nfts_data(self, context):
         elif filter_on == '.gltf':
             specific_extensions = ['.gltf', '.glb']
             extensions = [ext for ext in compatible_extensions if ext in specific_extensions]
-        elif filter_on == 'stream':
+        elif filter_on == 'streamonly':
             stream_only = True
         else:
             specific_extensions = [filter_on]
@@ -656,7 +656,8 @@ def update_nfts_data(self, context):
         #print(extensions)
         for key, url in data.items():
             # special treatment of lockiUrl to get to the datastream
-            if (key == 'lockiUrl') and (filter_on == 'none' or filter_on == 'stream'):
+            #print(filter_on)
+            if (key == 'lockiUrl') and (filter_on == 'none' or filter_on == 'streamonly'):
                 items.append((url , f'{identifier}-{key}', f"{url.split('/')[-1]} of {identifier}"))
             if stream_only == False:
                 if url is not None and (key.endswith("Url") or key.startswith("uri")) and any(url.endswith(ext) for ext in extensions):
