@@ -11,12 +11,12 @@ import datetime
 bl_info = {
     'name': 'Locki_id_Addon',
     'author': 'Satish NVRN, Calin Georges, Jean-Noël Schilling',
-    'version': (0, 1, 5),
+    'version': (0, 1, 6),
     'blender': (3, 6, 2),
     'location': 'Add-on preferences + navigate to 3D view panel',
     "doc_url": "https://github.com/locki-io/locki_id_addon/",
     'description':
-        'Stores your Locki ID credentials(API key) for usage of your stored NFTs',
+        'Stores your Locki ID credentials(NativeAuthToken) for usage of your stored NFTs',
     'category': 'Development'
 }
 
