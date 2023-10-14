@@ -586,19 +586,30 @@ class VIEW3D_PT_locki_panel(LockiIdMixin, bpy.types.Panel):
 
 def update_nfts_data(self, context):
     items = []  # Clear the collection first
+    stream_only = False
     data_nft = context.scene.locki.nfts_data
     # Access LockiIdProfile.nfts and populate nfts_data
     for identifier, data in LockiIdProfile.nfts.items():
         compatible_extensions = ['.svg', '.glb', '.gltf', '.py', '.step']
-        # filter_on = 
+        filter_on = context.scene.locki.file_format
+        if filter_on == 'none':
+            extensions = compatible_extensions
+        elif filter_on == '.gltf':
+            specific_extensions = ['.gltf', '.glb']
+            extensions = [ext for ext in compatible_extensions if ext in specific_extensions]
+        elif filter_on == 'stream':
+            stream_only = True
+        else:
+            specific_extensions = [filter_on]
+            extensions = [ext for ext in compatible_extensions if ext in specific_extensions]
+        print(extensions)
         for key, url in data.items():
             # special treatment of lockiUrl to get to the datastream
-            if key == 'lockiUrl':
+            if (key == 'lockiUrl') and (filter_on == 'none' or filter_on == 'stream'):
                 items.append((url , f'{identifier}-{key}', f"{url.split('/')[-1]} of {identifier}"))
-
-            if url is not None and (key.endswith("Url") or key.startswith("uri")) and any(url.endswith(ext) for ext in compatible_extensions):
-
-                items.append((url , f'{identifier}-{key}', f"Link to Datasteam of {identifier}"))
+            if stream_only == False:
+                if url is not None and (key.endswith("Url") or key.startswith("uri")) and any(url.endswith(ext) for ext in extensions):
+                    items.append((url , f'{identifier}-{key}', f"Link to Datasteam of {identifier}"))
 
     if items is None:
         items = [("default", "default", "Choose your nft")]
@@ -623,12 +634,13 @@ class SceneProperties(PropertyGroup):
         name="Filter",
         description="The file format of your NFT",
         items=(
-            ('SVG', "SVG", ""),
-            ('PY', "PY", ""),
-            ('GTLB', "GTLB", ""),
-            ('PNG', "PNG", ""),
+            ('none', "no Filter", ""),
+            ('streamonly',"View Data","View my private data"),
+            ('.svg', "SVG", "Filter only SVG content"),
+            ('.py', "PY", "Filter only python code content"),
+            ('.gltf', "GLTF or GLB", "Filter only gltf objects"),
         ),
-        default='SVG',
+        default='none',
     )
     ui_expanded_nft: BoolProperty(
         name="Show Nfts Expanded",
