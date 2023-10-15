@@ -205,7 +205,7 @@ def locki_id_server_authenticate( token ) -> AuthResult:
 
     if r.status_code == 200:
         resp = r.json()
-        return AuthResult(success=True, address=resp['address'], expires=resp['expires'])
+        return AuthResult(success=True, address=resp['address'], expires=resp['expires']*1000)
         # status = resp['status_code']
         #nativeAuthToken = resp['nativeAuthToken']
         #if nativeAuthToken is not None: # status == 'success':

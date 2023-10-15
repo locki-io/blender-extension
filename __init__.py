@@ -14,7 +14,9 @@ bl_info = {
     'version': (0, 1, 6),
     'blender': (3, 6, 2),
     'location': 'Add-on preferences + navigate to 3D view panel',
-    "doc_url": "https://github.com/locki-io/locki_id_addon/",
+    'doc_url': 'https://github.com/locki-io/locki_id_addon/',
+    'tracker_url' : 'https://app.locki.io/profile/',
+    'wiki_url': 'https://app.locki.io/profile/',
     'description':
         'Stores your Locki ID credentials(NativeAuthToken) for usage of your stored NFTs',
     'category': 'Development'
@@ -120,7 +122,7 @@ class LockiIdPreferences(AddonPreferences):
         default='',
         options={'HIDDEN', 'SKIP_SAVE'}
     )
-    api_key: StringProperty(
+    openAi: StringProperty(
         name='API KEY',
         default='',
         options={'HIDDEN', 'SKIP_SAVE'},
@@ -470,18 +472,34 @@ def load_url_as_object(url, file_format, location=(0,0,0)):
             with open(local_path, 'wb') as f:
                 f.write(r.content)
 
-            # Create a new text block
-            new_text_block = bpy.data.texts.new(name=file_name)
-
-            # Load the content of the Python file into the text block
-            with open(local_path, 'r') as f:
-                new_text_block.from_string(f.read())
             
-            # Select and show the imported script in the Text Editor
-            text = bpy.data.texts[file_name]
-            text.use_fake_user = True  # Ensure the script is saved
-            bpy.context.area.type = 'TEXT_EDITOR'  # Switch to the Text Editor area
-            bpy.ops.text.jump(filepath=text.filepath)  # Show the script in the Text Editor
+            
+            try:
+                # Find the newly created Text Editor area
+                text_editor_area = None
+                # Iterate through all text data-blocks and unlink them
+                for text in bpy.data.texts:
+                    bpy.data.texts.remove(text)
+
+                # Create a new text block
+                new_text_block = bpy.data.texts.new(name=file_name)
+
+                # Load the content of the Python file into the text block
+                with open(local_path, 'r') as f:
+                    new_text_block.from_string(f.read())
+
+                for area in bpy.context.screen.areas:
+                    if area.type == 'TEXT_EDITOR':
+
+                        text = bpy.data.texts[file_name]
+                        text.use_fake_user = True  # Ensure the script is saved
+                        # Switch to the Text Editor mode
+                        bpy.data.texts.get(file_name)
+
+            except Exception as e:
+                print(f"Error loading Python file in the text editor area: {e}")
+            finally:
+                clean_up_tempfile(temp_dir)
 
         else: 
             print(f"Error in downloading the python file: {r.status_code} - {r.text}")
@@ -511,12 +529,15 @@ def load_url_as_object(url, file_format, location=(0,0,0)):
         except Exception as e:
             print(f"Error loading URL as object: {e}")
         finally:
-            # Clean up: remove the temporary directory and its contents
-            if os.path.exists(temp_dir):
-                for root, dirs, files in os.walk(temp_dir):
-                    for file in files:
-                        os.remove(os.path.join(root, file))
-                os.rmdir(temp_dir)
+            clean_up_tempfile(temp_dir)
+
+def clean_up_tempfile(temp_dir):
+# Clean up: remove the temporary directory and its contents
+    if os.path.exists(temp_dir):
+        for root, dirs, files in os.walk(temp_dir):
+            for file in files:
+                os.remove(os.path.join(root, file))
+        os.rmdir(temp_dir)
 
 class UTILS_OT_load_nft(LockiIdMixin, bpy.types.Operator):
 
@@ -687,7 +708,7 @@ class SceneProperties(PropertyGroup):
         description="The file format of your NFT",
         items=(
             ('none', "no Filter", ""),
-            ('streamonly',"View Data","View my private data"),
+            ('streamonly',"View DataStream","View my private data"),
             ('.svg', "SVG", "Filter only SVG content"),
             ('.py', "PY", "Filter only python code content"),
             ('.gltf', "GLTF or GLB", "Filter only gltf objects"),
