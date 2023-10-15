@@ -3,14 +3,14 @@
 import logging  # from blender cloud addon
 from bpy.app.translations import pgettext_tip as tip_
 from bpy.props import PointerProperty, BoolProperty, StringProperty, IntProperty, CollectionProperty, EnumProperty
-from bpy.types import AddonPreferences, Context, Operator, PropertyGroup
+from bpy.types import AddonPreferences, Context, Operator, PropertyGroup, Menu
 import bpy
 import typing
 import datetime
 
 bl_info = {
     'name': 'Locki_id_Addon',
-    'author': 'Satish NVRN, Calin Georges, Jean-Noël Schilling',
+    'author': 'Satish NVRN, George Călin Pîrîială, Jean-Noël Schilling',
     'version': (0, 1, 6),
     'blender': (3, 6, 2),
     'location': 'Add-on preferences + navigate to 3D view panel',
@@ -743,6 +743,47 @@ class SceneProperties(PropertyGroup):
         #update=update_selected_nft_url
     )
 
+def get_selected_text():
+    # Check if we are in the Text Editor
+    if bpy.context.area.type == 'TEXT_EDITOR':
+        # Get the active text data-block
+        text = bpy.context.space_data.text
+
+        # Check if any text is selected
+        if text:
+            # Set the selection range
+            text.select_set(line_start=text.current_line_index, char_start=text.current_character,  line_end=text.select_end_line_index, char_end=text.select_end_character)
+            
+            # Get the selected text from the text data-block
+            selected_text = text.as_string()
+                        
+            # Replace tabs with spaces to preserve indentation
+            selected_text = selected_text.replace('\t', '    ')
+            
+            # Replace newline characters with '\n' to preserve line breaks
+            selected_text = selected_text.replace('\n', '\\n')
+            
+            return selected_text
+    # If not in the Text Editor or no text is selected, return None
+    return None
+
+class AiOperator(Operator):
+    bl_idname = "text.ai_operator"
+    bl_label = "Artificial intelligence Operator"
+
+    def execute(self, context):
+        # Your custom operator logic goes here
+        import webbrowser
+        locki = context.scene.locki
+        helpMeString = get_selected_text()
+        ai_help_url = 'https://app.locki.io/AiSupport?string=' + helpMeString + '&nativeAuthToken=' + profiles.LockiIdProfile.token
+        webbrowser.open(ai_help_url)
+
+        return {'FINISHED'}
+
+def ai_menu_func(self, context):
+    self.layout.operator("text.ai_operator", text="Update this script with locki AI")
+
 module_classes = (
     NftDataItem,
     SceneProperties,
@@ -760,7 +801,10 @@ module_classes = (
     get_scripts.MESH_OT_add_rotating_cube_obj, # Register mesh and scene utilities
     clean_scene.MESH_OT_clean_scene, # Register mesh and scene utilities
 
-    VIEW3D_PT_locki_panel, # register panel    
+    VIEW3D_PT_locki_panel, # register panel
+    #AiLockiTextEditorMenu,
+    AiOperator
+
 )
 
 
@@ -773,12 +817,9 @@ def register():
 
     # Define a full scene (UI) reserved for the addon all defined in Class Scene property
     bpy.types.Scene.locki = PointerProperty(type=SceneProperties)
-    # Register the update handler for nfts_collection
-    # bpy.types.Scene.locki.nfts_collection = bpy.props.IntProperty(
-    #     update=update_selected_nft_url
-    # )
-    LockiIdProfile.read_json()
+    bpy.types.TEXT_MT_context_menu.append(ai_menu_func)
 
+    LockiIdProfile.read_json()
     # Reset messages or any final initialization
     preferences = LockiIdMixin.addon_prefs(bpy.context)
     preferences.reset_messages()
@@ -790,7 +831,8 @@ def unregister():
     # Reset messages or any final de-initialization
     preferences = LockiIdMixin.addon_prefs(bpy.context)
     preferences.reset_messages()  # Assuming you might want to clean up some stuff during unregister as well.
-    
+    bpy.types.TEXT_MT_context_menu.remove(ai_menu_func)
+
     # Unregister Classes in reverse order
     for cls in reversed(module_classes):
         bpy.utils.unregister_class(cls)
