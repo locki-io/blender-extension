@@ -741,8 +741,9 @@ class SceneProperties(PropertyGroup):
         description='All loaded Nfts by identifier',
         #update=update_selected_nft_url
     )
-
+ 
 def get_selected_text():
+    import re
     # Check if we are in the Text Editor
     if bpy.context.area.type == 'TEXT_EDITOR':
         # Get the active text data-block
@@ -750,19 +751,38 @@ def get_selected_text():
 
         # Check if any text is selected
         if text:
+            text_selection = bpy.context.edit_text
+            active_text = bpy.context.area.spaces.active.text
             # Set the selection range
-            text.select_set(line_start=text.current_line_index, char_start=text.current_character,  line_end=text.select_end_line_index, char_end=text.select_end_character)
-            
-            # Get the selected text from the text data-block
-            selected_text = text.as_string()
-                        
+            cli = text_selection.current_line_index
+            eli = text_selection.select_end_line_index
+            store_text = ''
+            # Define a regular expression pattern to match tabs
+            tab_pattern = re.compile(r'    ')
+
+            if  cli <= eli:
+                while cli <= eli:
+                    store_text += tab_pattern.sub(r'\t',text_selection.current_line.body)
+                    store_text += '\n'
+                    cli += 1
+                    text_selection.select_set(line_start=cli, char_start=0,  line_end=cli+1, char_end=0)
+            else:
+                text_selection.select_set(line_start=eli, char_start=0,  line_end=eli, char_end=0)
+                temp = cli
+                cli = eli
+                eli = temp
+                while cli <= eli:
+                    store_text += tab_pattern.sub(r'\t',text_selection.current_line.body)
+                    store_text += '\n'
+                    cli += 1
+                    text_selection.select_set(line_start=cli, char_start=0,  line_end=cli+1, char_end=0)
+                      
             # Replace tabs with spaces to preserve indentation
-            selected_text = selected_text.replace('\t', '    ')
-            
-            # Replace newline characters with '\n' to preserve line breaks
-            selected_text = selected_text.replace('\n', '\\n')
-            
-            return selected_text
+            store_text = store_text.replace('\t', '\\t')
+            store_text = store_text.replace('\n', '\\n')
+            text_selection.select_set(line_start=cli, char_start=0,  line_end=eli+1, char_end=0)
+           
+            return store_text
     # If not in the Text Editor or no text is selected, return None
     return None
 
