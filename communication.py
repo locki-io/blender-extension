@@ -14,6 +14,7 @@ AUTH_ENDPOINT = 'https://2rkm8gkhk7.execute-api.eu-central-1.amazonaws.com/'
 
 # Will become a requests.Session at the first request to Locki ID.
 requests_session = None
+load_session = None
 
 # Request timeout, in seconds.
 REQUESTS_TIMEOUT = 10.0
@@ -39,11 +40,47 @@ def host_label():
     # info on where Blender is running
     return 'Blender running on %r' % socket.gethostname()
 
+def load_nft_session():
+# Returns the loading session, creating it if necessary.
+# The load session is necessary because authorizing on some website returns error
+    global load_session
+    import requests.adapters
+
+    if load_session is not None:
+        return load_session
+
+    load_session = requests.session()
+
+    retries = requests.packages.urllib3.util.retry.Retry(
+        total=5,
+        backoff_factor=0.05,
+    )
+    http_adapter = requests.adapters.HTTPAdapter(max_retries=retries)
+    load_session.mount('https://', http_adapter)
+    load_session.mount('http://', http_adapter)
+
+    # Construct the User-Agent header with Blender and add-on versions.
+    try:
+        import bpy
+    except ImportError:
+        blender_version = 'unknown'
+    else:
+        blender_version = '.'.join(str(component)
+                                   for component in bpy.app.version)
+
+    from blender_id import bl_info
+    from . import bl_info as bl_info_addon 
+    # addon_version = '.'.join(str(component) for component in bl_info['version'])
+    addon_version = bl_info_addon['version']
+    load_session.headers['User-Agent'] = f'Blender/{blender_version} Locki-ID-Addon/{ addon_version }'
+
+    return load_session
+
 def locki_id_session(token: str = None):
     """Returns the Requests session, creating it if necessary."""
     global requests_session
     import requests.adapters
-    import json 
+
     if requests_session is not None:
         return requests_session
 

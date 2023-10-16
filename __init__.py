@@ -11,12 +11,11 @@ import datetime
 bl_info = {
     'name': 'Locki_id_Addon',
     'author': 'Satish NVRN, George Călin Pîrîială, Jean-Noël Schilling',
-    'version': (0, 1, 6),
+    'version': (0, 1, 7),
     'blender': (3, 6, 2),
     'location': 'Add-on preferences + navigate to 3D view panel',
-    'doc_url': 'https://github.com/locki-io/locki_id_addon/',
-    'tracker_url' : 'https://app.locki.io/profile/',
-    'wiki_url': 'https://app.locki.io/profile/',
+    'tracker_url': 'https://github.com/locki-io/locki_id_addon/',
+    'doc_url' : 'https://app.locki.io/profile/',
     'description':
         'Stores your Locki ID credentials(NativeAuthToken) for usage of your stored NFTs',
     'category': 'Development'
@@ -203,11 +202,15 @@ class LockiIdPreferences(AddonPreferences):
                     col.label(text=tip_('Your authentication token expires %s') % exp_str,
                               icon='BLANK1')
 
-            row = layout.row().split(factor=0.8)
+            row = layout.row().split(factor=1)
             row.operator('locki_id.logout')
-            row.operator('locki_id.validate')
+            # row.operator('locki_id.validate')
             
         else:
+            col = layout.column(align=True)
+            msg = tip_('You are not logged in yet')
+            col.label(text=msg, icon='INFO')
+            col.label(text=tip_('get your NativeAuth token on app.locki.io/profile (hit Documentation button)'), icon='PREVIEW_RANGE')
             layout.prop(self, 'address')
             layout.prop(self, 'token')
 
@@ -225,22 +228,6 @@ class LockiIdMixin:
         addon_prefs = prefs.addons[__name__].preferences
         addon_prefs.reset_messages()
         return addon_prefs
-
-# def update_nfts_data(self, context):
-#     nfts_data = context.scene.locki.nfts_data
-#     nfts_data.clear()  # Clear the collection first
-#     nfts_data = [("default", "default", "Choose your nft")]
-#     # Access LockiIdProfile.nfts and populate nfts_data
-#     for identifier, data in LockiIdProfile.nfts.items():
-#     #for identifier, data in context.scene.locki.nfts.items():
-#         for key, url in data.items():
-#             if (key.endswith("Url") or key.startswith("uri")) and url.endswith(".svg"):
-#                 # item = nfts_data.add()
-#                 item.identifier = f'{identifier}-{key}'
-#                 item.name = f"{url.split('/')[-1]} of {identifier}"
-#                 item.url = url
-#     print(nfts_data)
-
 
 
 class LockiIdLogin(LockiIdMixin, Operator):
@@ -434,7 +421,7 @@ def load_url_as_object(url, file_format, location=(0,0,0)):
         return
     
     if file_format == 'GLB':
-        session = communication.locki_id_session()
+        session = communication.load_nft_session()
         r = session.get(url, verify=True)
         if r.status_code == 200:
             print(f"passed with 200")
@@ -456,7 +443,7 @@ def load_url_as_object(url, file_format, location=(0,0,0)):
             print(f"Error in downloading the obj/mesh file: {r.status_code} - {r.text}")
 
     if file_format == 'PY':
-        session = communication.locki_id_session()
+        session = communication.load_nft_session()
         r = session.get(url, verify=True)
         if r.status_code == 200:
             print(f"passed with 200")
@@ -776,7 +763,7 @@ class AiOperator(Operator):
         import webbrowser
         locki = context.scene.locki
         helpMeString = get_selected_text()
-        ai_help_url = 'https://app.locki.io/AiSupport?string=' + helpMeString + '&nativeAuthToken=' + profiles.LockiIdProfile.token
+        ai_help_url = 'https://app.locki.io/AiSupport?string=' + helpMeString 
         webbrowser.open(ai_help_url)
 
         return {'FINISHED'}
