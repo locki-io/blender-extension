@@ -17,7 +17,7 @@ requests_session = None
 load_session = None
 
 # Request timeout, in seconds.
-REQUESTS_TIMEOUT = 10.0
+REQUESTS_TIMEOUT = 5.0
 
 class LockiIdCommError(RuntimeError):
     """Raised when there was an error communicating with Locki ID"""
@@ -301,7 +301,6 @@ def locki_id_server_logout(address, token):
     @return: {'status': 'fail' or 'success', 'error_message': str}
     @rtype: dict
     """
-
     import requests.exceptions
 
     payload = dict(

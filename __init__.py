@@ -241,6 +241,7 @@ class LockiIdLogin(LockiIdMixin, Operator):
 
         addon_prefs = self.addon_prefs(context)
 
+        requests_session = None
         auth_result = communication.locki_id_server_authenticate(
             #address=addon_prefs.address,
             token=addon_prefs.token,
@@ -319,7 +320,7 @@ class LockiIdLogout(LockiIdMixin, Operator):
 
     def execute(self, context):
         addon_prefs = self.addon_prefs(context)
-
+        requests_session = None
         communication.locki_id_server_logout(LockiIdProfile.address,
                                              LockiIdProfile.token)
 
@@ -459,8 +460,6 @@ def load_url_as_object(url, file_format, location=(0,0,0)):
             with open(local_path, 'wb') as f:
                 f.write(r.content)
 
-            
-            
             try:
                 # Find the newly created Text Editor area
                 text_editor_area = None
@@ -480,8 +479,21 @@ def load_url_as_object(url, file_format, location=(0,0,0)):
 
                         text = bpy.data.texts[file_name]
                         text.use_fake_user = True  # Ensure the script is saved
-                        # Switch to the Text Editor mode
-                        bpy.data.texts.get(file_name)
+                        
+                        # Method 1 Switch to the Text Editor mode
+                        area.spaces[0].text = text # make loaded text file visible
+                        ctx = bpy.context.copy()
+                        ctx['edit_text'] = text
+                        ctx['area'] = area
+                        ctx['region'] = area.regions[-1] # ... just modify the view area
+                        # Crashes Blender
+                        # bpy.ops.text.run_script(ctx) #running the script
+
+                        bufferName = file_name
+                        lib = bpy.data.texts[bufferName].as_string()
+                        exec(lib)
+                        bpy.ops.screen.animation_play()
+                        break 
 
             except Exception as e:
                 print(f"Error loading Python file in the text editor area: {e}")
