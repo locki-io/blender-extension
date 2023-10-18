@@ -795,7 +795,7 @@ class AiOperator(Operator):
         import webbrowser
         locki = context.scene.locki
         helpMeString = get_selected_text()
-        ai_help_url = 'https://app.locki.io/AiSupport?string=' + helpMeString 
+        ai_help_url = 'https://chat.locki.io?string=' + helpMeString 
         webbrowser.open(ai_help_url)
 
         return {'FINISHED'}
