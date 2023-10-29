@@ -70,7 +70,7 @@ def get_nftlist_from_address(address):
 def extract_data_preview_url(metadata_json_url):
     import json
     import requests
-
+    metadata = []
     try:
         response = requests.get(metadata_json_url)
         
@@ -89,10 +89,11 @@ def extract_data_preview_url(metadata_json_url):
     dataPreviewUrl = None
 
     # Search for the "Data Preview URL" trait in the attributes list
-    for attribute in metadata.get("attributes", []):
-        if attribute.get("trait_type") == "Data Preview URL":
-            dataPreviewUrl = attribute.get("value")
-            break  # Exit the loop once found
+    for item in metadata:
+        for attribute in metadata.get("attributes", []):
+            if attribute.get("trait_type") == "Data Preview URL":
+                dataPreviewUrl = attribute.get("value")
+                break  # Exit the loop once found
 
     return dataPreviewUrl
 
