@@ -415,13 +415,13 @@ def load_url_as_object(url, file_format, location=(0,0,0)):
     Save your preferences.
     After configuring Blender to use a trusted certificate bundle, it should be able to perform SSL certificate verification correctly when making HTTPS requests.
     """
-    supported_formats = {'SVG', 'GLB', 'PY'}  # Add more formats if needed
+    supported_formats = {'SVG', 'GLB', 'GLTF', 'PY'}  # Add more formats if needed
 
     if file_format not in supported_formats:
         print(f"Unsupported file format: {file_format}")
         return
     
-    if file_format == 'GLB':
+    if (file_format == 'GLB') or (file_format == 'GLTF') :
         session = communication.load_nft_session()
         r = session.get(url, verify=True)
         if r.status_code == 200:

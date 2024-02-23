@@ -118,7 +118,7 @@ def get_urllist_from_list(nftlist):
             }
             continue
         # DATANFT from collection
-        if (item['collection'] == 'DATANFTFT4-3ba099'):  # Check if 'media' key exists and is not empty
+        if (item['collection'] == 'DATANFTFT-e0b917'):  # Check if 'media' key exists and is not empty
             identifier = item['identifier']
             name = item['name']
             nonce = item['nonce']
