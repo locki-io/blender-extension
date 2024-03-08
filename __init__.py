@@ -110,39 +110,39 @@ class LockiIdPreferences(AddonPreferences):
         name='Error Message',
         default='',
         options={'HIDDEN', 'SKIP_SAVE'}
-    )
+    )# type: ignore
     ok_message: StringProperty(
         name='Message',
         default='',
         options={'HIDDEN', 'SKIP_SAVE'}
-    )
+    )# type: ignore
     address: StringProperty(
         name='wallet address',
         default='',
         options={'HIDDEN', 'SKIP_SAVE'}
-    )
+    ) # type: ignore
     openAi: StringProperty(
         name='API KEY',
         default='',
         options={'HIDDEN', 'SKIP_SAVE'},
         subtype='PASSWORD'
-    )
+    ) # type: ignore
     token: StringProperty(
         name='NativeAuthToken',
         default='',
         options={'HIDDEN', 'SKIP_SAVE'}
-    )
+    ) # type: ignore
     nonce: IntProperty(
         name='nonce', 
         default= 0
-    )
+    )# type: ignore
     nfts_enum: EnumProperty(
         items=[('default', "default", "Choose your nft")],
         # Enumeration of the nfts it is an object
         name='All my NFTs',  # Default item
         default='default',
         description='Formated enumeration of the NFTs',
-    )
+    )# type: ignore
 
     def reset_messages(self):
         self.ok_message = ''
@@ -697,9 +697,9 @@ def update_selected_nft_url(self, context):
         context.scene.locki.my_selected_nft = ""
 
 class NftDataItem(PropertyGroup):
-    identifier: StringProperty()
-    name: StringProperty()
-    url: StringProperty()
+    identifier: StringProperty() # type: ignore
+    name: StringProperty() # type: ignore
+    url: StringProperty() # type: ignore
 
 class SceneProperties(PropertyGroup):
     file_format: EnumProperty(
@@ -713,25 +713,25 @@ class SceneProperties(PropertyGroup):
             ('.gltf', "GLTF or GLB", "Filter only gltf objects"),
         ),
         default='none',
-    )
+    ) # type: ignore
     ui_expanded_nft: BoolProperty(
         name="Show Nfts Expanded",
         description="Shows the box 'Nfts choice' expanded in user interface",
         default=True, 
         options={'SKIP_SAVE'}
-        )
+        ) # type: ignore
     
     # Define your custom property for the Scene object
     my_selected_nft: StringProperty(
         name="My Selected Nft",
         default="",
         description="A description for my selected NFT"
-    )
+    ) # type: ignore
     nfts_data: bpy.props.CollectionProperty(
         type=NftDataItem,
         name="My Nfts Data",
         description='All loaded Nfts by identifier',
-    )
+    ) # type: ignore
 
     # Define a CollectionProperty to store items for the combobox
     nfts_collection: EnumProperty(
@@ -740,7 +740,7 @@ class SceneProperties(PropertyGroup):
         # default=1,        
         description='All loaded Nfts by identifier',
         #update=update_selected_nft_url
-    )
+    ) # type: ignore
  
 def get_selected_text():
     import re
